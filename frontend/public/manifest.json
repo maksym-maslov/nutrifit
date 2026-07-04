@@ -1,0 +1,25 @@
+{
+  "name": "NutriFit",
+  "short_name": "NutriFit",
+  "description": "Your premium athletic nutrition tracker",
+  "theme_color": "#00E676",
+  "background_color": "#121214",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
