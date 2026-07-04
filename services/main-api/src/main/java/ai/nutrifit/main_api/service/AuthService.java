@@ -7,6 +7,7 @@ import ai.nutrifit.main_api.entity.RefreshToken;
 import ai.nutrifit.main_api.entity.User;
 import ai.nutrifit.main_api.repository.RefreshTokenRepository;
 import ai.nutrifit.main_api.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -30,19 +31,22 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
+    private final boolean cookieSecure;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
-            TokenService tokenService
+            TokenService tokenService,
+            @Value("${app.cookie.secure}") boolean cookieSecure
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.tokenService = tokenService;
+        this.cookieSecure = cookieSecure;
     }
 
     @Transactional
@@ -103,7 +107,7 @@ public class AuthService {
     private ResponseCookie buildRefreshCookie(String token) {
         return ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .sameSite("Strict")
                 .path("/api/v1/auth/refresh")
                 .maxAge(REFRESH_TOKEN_VALIDITY_DAYS * 24 * 60 * 60)
