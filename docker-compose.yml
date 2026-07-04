@@ -19,9 +19,17 @@ services:
     env_file: .env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrifit
+      APP_COOKIE_SECURE: "false"
     depends_on:
       postgres:
         condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - main-api
 
 volumes:
   postgres_data:
