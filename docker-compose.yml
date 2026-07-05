@@ -20,9 +20,12 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrifit
       APP_COOKIE_SECURE: "false"
+      ML_API_BASE_URL: http://ml-api:8000
     depends_on:
       postgres:
         condition: service_healthy
+      ml-api:
+        condition: service_started
 
   ml-api:
     build: ./services/ml-api
