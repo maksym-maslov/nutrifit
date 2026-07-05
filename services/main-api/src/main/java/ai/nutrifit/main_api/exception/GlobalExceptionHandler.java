@@ -1,5 +1,7 @@
 package ai.nutrifit.main_api.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,8 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ProblemDetail> handleResponseStatusException(ResponseStatusException ex) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason());
@@ -37,5 +41,15 @@ public class GlobalExceptionHandler {
                 "Required cookie '" + ex.getCookieName() + "' is missing"
         );
         return ResponseEntity.badRequest().body(detail);
+    }
+
+    @ExceptionHandler(MlApiClientException.class)
+    public ResponseEntity<ProblemDetail> handleMlApiClientException(MlApiClientException ex) {
+        log.warn("ML API client error: {}", ex.getMessage(), ex);
+        String detail = ex.getStatusCode() != null
+                ? ex.getMessage() + " (upstream: " + ex.getStatusCode() + ")"
+                : ex.getMessage();
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, detail);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(problemDetail);
     }
 }
