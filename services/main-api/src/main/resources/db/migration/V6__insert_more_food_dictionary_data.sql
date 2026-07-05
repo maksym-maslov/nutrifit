@@ -1,0 +1,60 @@
+INSERT INTO food_dictionary (name, brand, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g) VALUES
+-- === DAIRY & MILK ALTERNATIVES (51-60) ===
+('Milk (Whole, 3.2%)', 'Generic', 61, 3.2, 4.8, 3.3),
+('Milk (Skim, 0%)', 'Generic', 34, 3.4, 5.0, 0.1),
+('Almond Milk (Unsweetened)', 'Generic', 15, 0.5, 1.3, 1.0),
+('Oat Milk (Unsweetened)', 'Generic', 42, 1.4, 6.5, 1.5),
+('Cheddar Cheese', 'Generic', 402, 25.0, 1.3, 33.0),
+('Mozzarella (Part-Skim)', 'Generic', 254, 24.3, 2.8, 15.9),
+('Parmesan Cheese (Grated)', 'Generic', 431, 38.5, 4.1, 28.6),
+('Butter (Unsalted)', 'Generic', 717, 0.8, 0.1, 81.1),
+('Ghee (Clarified Butter)', 'Generic', 900, 0.0, 0.0, 100.0),
+('Kefir (Low Fat)', 'Generic', 43, 3.3, 4.8, 1.0),
+
+-- === LEGUMES & BEANS (Cooked) (61-70) ===
+('Chickpeas (Cooked)', 'Generic', 164, 8.9, 27.4, 2.6),
+('Black Beans (Cooked)', 'Generic', 132, 8.9, 23.7, 0.5),
+('Lentils (Cooked)', 'Generic', 116, 9.0, 20.1, 0.4),
+('Kidney Beans (Cooked)', 'Generic', 127, 8.7, 22.8, 0.5),
+('Pinto Beans (Cooked)', 'Generic', 143, 9.0, 26.2, 0.6),
+('Edamame (Cooked)', 'Generic', 121, 11.9, 8.9, 5.2),
+('Green Peas (Cooked)', 'Generic', 81, 5.4, 14.5, 0.4),
+('Mung Beans (Cooked)', 'Generic', 105, 7.0, 19.1, 0.4),
+('Soybeans (Cooked)', 'Generic', 172, 16.6, 9.9, 9.0),
+('Lima Beans (Cooked)', 'Generic', 115, 7.8, 20.9, 0.4),
+
+-- === ADDITIONAL PROTEINS & MEATS (71-80) ===
+('Ground Beef (90% Lean, Raw)', 'Generic', 176, 20.0, 0.0, 10.0),
+('Ground Turkey (93% Lean, Raw)', 'Generic', 150, 18.6, 0.0, 8.0),
+('Chicken Thighs (Boneless/Skinless, Raw)', 'Generic', 121, 19.5, 0.0, 4.0),
+('Salmon (Smoked)', 'Generic', 117, 18.3, 0.0, 4.3),
+('Halibut (Raw)', 'Generic', 91, 18.6, 0.0, 1.3),
+('Scallops (Raw)', 'Generic', 69, 12.1, 3.2, 0.5),
+('Mackerel (Raw)', 'Generic', 205, 18.6, 0.0, 13.9),
+('Sardines (Canned in Water)', 'Generic', 146, 20.2, 0.0, 6.7),
+('Duck Breast (Raw, Skinless)', 'Generic', 123, 19.3, 0.0, 4.5),
+('Bison (Ground, Raw)', 'Generic', 146, 20.2, 0.0, 7.2),
+
+-- === ADDITIONAL CARBOHYDRATES & GRAINS (81-90) ===
+('Sourdough Bread', 'Generic', 289, 12.0, 56.0, 1.8),
+('Pita Bread (Whole Wheat)', 'Generic', 262, 9.8, 55.2, 1.7),
+('Flour Tortilla', 'Generic', 297, 8.1, 49.3, 7.3),
+('Rice Noodles (Dry)', 'Generic', 364, 3.2, 80.2, 0.6),
+('Udon Noodles (Dry)', 'Generic', 351, 12.4, 71.3, 1.2),
+('Barley (Pearled, Raw)', 'Generic', 352, 9.9, 77.7, 1.2),
+('Millet (Raw)', 'Generic', 378, 11.0, 72.8, 4.2),
+('Rye Bread', 'Generic', 259, 8.5, 48.3, 3.3),
+('Jasmine Rice (Raw)', 'Generic', 365, 7.1, 80.4, 0.7),
+('Macaroni (Dry)', 'Generic', 371, 13.0, 74.7, 1.5),
+
+-- === SNACKS, SEEDS & EXTRAS (91-100) ===
+('Pumpkin Seeds (Raw)', 'Generic', 574, 30.2, 14.7, 49.0),
+('Sunflower Seeds (Raw)', 'Generic', 584, 20.8, 20.0, 51.5),
+('Macadamia Nuts (Raw)', 'Generic', 718, 7.9, 13.8, 75.8),
+('Pistachios (Raw)', 'Generic', 562, 20.2, 27.2, 45.3),
+('Popcorn (Air Popped, No Butter)', 'Generic', 387, 12.9, 77.9, 4.5),
+('Hummus', 'Generic', 166, 7.9, 14.3, 9.6),
+('Avocado Oil', 'Generic', 884, 0.0, 0.0, 100.0),
+('Sesame Seeds (Raw)', 'Generic', 573, 17.7, 23.4, 49.7),
+('Protein Bar (Chocolate Peanut)', 'Generic', 412, 33.0, 36.0, 14.0),
+('Hemp Hearts (Raw)', 'Generic', 553, 31.6, 8.7, 48.8);
