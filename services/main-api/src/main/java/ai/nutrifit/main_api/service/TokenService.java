@@ -30,6 +30,7 @@ public class TokenService {
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(accessTokenExpirySeconds))
                 .subject(user.getEmail())
+                .claim("user_id", user.getId())
                 .claim("scope", user.getRole())
                 .build();
 
