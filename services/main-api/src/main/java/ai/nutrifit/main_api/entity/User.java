@@ -28,6 +28,21 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "weight_kg")
+    private Float weightKg;
+
+    @Column(name = "goal_calories")
+    private Integer goalCalories;
+
+    @Column(name = "goal_protein_g")
+    private Float goalProteinG;
+
+    @Column(name = "goal_carbs_g")
+    private Float goalCarbsG;
+
+    @Column(name = "goal_fat_g")
+    private Float goalFatG;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -90,5 +105,45 @@ public class User implements UserDetails {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Float getWeightKg() {
+        return weightKg;
+    }
+
+    public void setWeightKg(Float weightKg) {
+        this.weightKg = weightKg;
+    }
+
+    public Integer getGoalCalories() {
+        return goalCalories;
+    }
+
+    public void setGoalCalories(Integer goalCalories) {
+        this.goalCalories = goalCalories;
+    }
+
+    public Float getGoalProteinG() {
+        return goalProteinG;
+    }
+
+    public void setGoalProteinG(Float goalProteinG) {
+        this.goalProteinG = goalProteinG;
+    }
+
+    public Float getGoalCarbsG() {
+        return goalCarbsG;
+    }
+
+    public void setGoalCarbsG(Float goalCarbsG) {
+        this.goalCarbsG = goalCarbsG;
+    }
+
+    public Float getGoalFatG() {
+        return goalFatG;
+    }
+
+    public void setGoalFatG(Float goalFatG) {
+        this.goalFatG = goalFatG;
     }
 }
