@@ -9,9 +9,11 @@ public record UserProfileSummaryDTO(
         Integer goalCalories,
         Float goalProteinG,
         Float goalCarbsG,
-        Float goalFatG
+        Float goalFatG,
+        boolean onboarded
 ) {
     public static UserProfileSummaryDTO from(User user) {
+        boolean onboarded = user.getAge() != null && user.getFitnessGoal() != null;
         return new UserProfileSummaryDTO(
                 user.getFullName(),
                 user.getEmail(),
@@ -19,7 +21,8 @@ public record UserProfileSummaryDTO(
                 user.getGoalCalories(),
                 user.getGoalProteinG(),
                 user.getGoalCarbsG(),
-                user.getGoalFatG()
+                user.getGoalFatG(),
+                onboarded
         );
     }
 }

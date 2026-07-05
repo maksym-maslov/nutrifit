@@ -9,6 +9,7 @@ import ai.nutrifit.main_api.service.ProfileOnboardingService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,15 @@ public class ProfileController {
         this.profileOnboardingService = profileOnboardingService;
         this.authenticationFacade = authenticationFacade;
         this.userRepository = userRepository;
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserProfileSummaryDTO> getProfile() {
+        Long userId = authenticationFacade.getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        return ResponseEntity.ok(UserProfileSummaryDTO.from(user));
     }
 
     @PutMapping("/onboarding")
