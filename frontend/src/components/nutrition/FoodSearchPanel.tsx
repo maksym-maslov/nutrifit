@@ -1,0 +1,121 @@
+import { useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useFoodSearch } from '@/hooks/useFoodSearch'
+import { PortionInputOverlay } from '@/components/nutrition/PortionInputOverlay'
+import { Spinner } from '@/components/ui/Spinner'
+import type { FoodItem } from '@/types/nutrition'
+
+interface FoodSearchPanelProps {
+  activeMealId: number
+  activeMealName: string
+  onDone: () => void
+  onLogItem: (foodId: number, weightG: number) => Promise<boolean>
+  isSubmitting: boolean
+  error: string | null
+}
+
+export function FoodSearchPanel({
+  activeMealId,
+  activeMealName,
+  onDone,
+  onLogItem,
+  isSubmitting,
+  error,
+}: FoodSearchPanelProps) {
+  const [query, setQuery] = useState('')
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null)
+  const debouncedQuery = useDebouncedValue(query, 300)
+  const { results, isSearching, error: searchError } = useFoodSearch(debouncedQuery)
+
+  const handleLogItem = async (weightG: number): Promise<boolean> => {
+    if (!selectedFood) return false
+    const success = await onLogItem(selectedFood.id, weightG)
+    if (success) {
+      setSelectedFood(null)
+      setQuery('')
+    }
+    return success
+  }
+
+  return (
+    <>
+      <section className="mt-6 rounded-xl border border-mint/30 bg-ink-light p-4 animate-slide-up">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-mint">
+              Adding to
+            </p>
+            <p className="text-sm font-semibold text-white mt-0.5">{activeMealName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onDone}
+            className="text-sm font-medium text-white/50 hover:text-white transition-colors"
+          >
+            Done
+          </button>
+        </div>
+
+        <div className="relative">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search foods..."
+            className="w-full rounded-xl border border-ink-border bg-ink px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-all focus:border-mint focus:ring-2 focus:ring-mint/20"
+            aria-label="Search foods"
+          />
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <Spinner className="h-4 w-4 text-mint" />
+            </div>
+          )}
+        </div>
+
+        {searchError && (
+          <p className="mt-2 text-xs text-red-400">{searchError}</p>
+        )}
+
+        {debouncedQuery.length >= 2 && !isSearching && results.length === 0 && !searchError && (
+          <p className="mt-3 text-sm text-white/40 text-center py-2">
+            No foods found for &ldquo;{debouncedQuery}&rdquo;
+          </p>
+        )}
+
+        {results.length > 0 && (
+          <ul className="mt-3 max-h-48 overflow-y-auto rounded-xl border border-ink-border divide-y divide-ink-border">
+            {results.map((food) => (
+              <li key={food.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFood(food)}
+                  className="w-full px-4 py-3 text-left hover:bg-ink transition-colors"
+                >
+                  <p className="text-sm font-medium text-white truncate">{food.name}</p>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {food.brand ? `${food.brand} · ` : ''}
+                    {food.caloriesPer100g} kcal / 100g
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {error && (
+          <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+      </section>
+
+      <PortionInputOverlay
+        food={selectedFood}
+        mealId={activeMealId}
+        onClose={() => setSelectedFood(null)}
+        onLogItem={handleLogItem}
+        isSubmitting={isSubmitting}
+      />
+    </>
+  )
+}
