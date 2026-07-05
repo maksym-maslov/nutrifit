@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { OnboardingPage } from '@/pages/OnboardingPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -16,13 +17,37 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 function GuestRoute({ children }: { children: ReactNode }) {
-  const { user, isLoading } = useAuth()
+  const { user, isOnboarded, isLoading } = useAuth()
 
   if (isLoading) {
     return <AppLoadingScreen />
   }
 
-  return user ? <Navigate to="/dashboard" replace /> : <>{children}</>
+  if (user) {
+    return <Navigate to={isOnboarded ? '/dashboard' : '/onboarding'} replace />
+  }
+
+  return <>{children}</>
+}
+
+function OnboardedRoute({ children }: { children: ReactNode }) {
+  const { isOnboarded, isLoading } = useAuth()
+
+  if (isLoading) {
+    return <AppLoadingScreen />
+  }
+
+  return isOnboarded ? <>{children}</> : <Navigate to="/onboarding" replace />
+}
+
+function OnboardingRoute({ children }: { children: ReactNode }) {
+  const { isOnboarded, isLoading } = useAuth()
+
+  if (isLoading) {
+    return <AppLoadingScreen />
+  }
+
+  return isOnboarded ? <Navigate to="/dashboard" replace /> : <>{children}</>
 }
 
 export function App() {
@@ -49,10 +74,23 @@ export function App() {
       />
 
       <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <OnboardingRoute>
+              <OnboardingPage />
+            </OnboardingRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <OnboardedRoute>
+              <DashboardPage />
+            </OnboardedRoute>
           </ProtectedRoute>
         }
       />

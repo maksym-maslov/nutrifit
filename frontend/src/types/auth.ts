@@ -1,6 +1,9 @@
+import type { UserProfileSummary } from '@/types/profile'
+
 export interface User {
   email: string
   role: string
+  profile: UserProfileSummary | null
 }
 
 export interface TokenResponse {
