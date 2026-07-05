@@ -1,5 +1,7 @@
 package ai.nutrifit.main_api.entity;
 
+import ai.nutrifit.main_api.enums.ActivityLevel;
+import ai.nutrifit.main_api.enums.FitnessGoal;
 import jakarta.persistence.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -42,6 +44,22 @@ public class User implements UserDetails {
 
     @Column(name = "goal_fat_g")
     private Float goalFatG;
+
+    private Integer age;
+
+    @Column(length = 10)
+    private String gender;
+
+    @Column(name = "height_cm")
+    private Float heightCm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fitness_goal", length = 30)
+    private FitnessGoal fitnessGoal;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "activity_level", length = 30)
+    private ActivityLevel activityLevel;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -145,5 +163,45 @@ public class User implements UserDetails {
 
     public void setGoalFatG(Float goalFatG) {
         this.goalFatG = goalFatG;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public Float getHeightCm() {
+        return heightCm;
+    }
+
+    public void setHeightCm(Float heightCm) {
+        this.heightCm = heightCm;
+    }
+
+    public FitnessGoal getFitnessGoal() {
+        return fitnessGoal;
+    }
+
+    public void setFitnessGoal(FitnessGoal fitnessGoal) {
+        this.fitnessGoal = fitnessGoal;
+    }
+
+    public ActivityLevel getActivityLevel() {
+        return activityLevel;
+    }
+
+    public void setActivityLevel(ActivityLevel activityLevel) {
+        this.activityLevel = activityLevel;
     }
 }
