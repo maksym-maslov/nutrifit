@@ -1,24 +1,53 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { DateNavigator } from '@/components/nutrition/DateNavigator'
 import { DailySummaryCard } from '@/components/nutrition/DailySummaryCard'
 import { MealsList } from '@/components/nutrition/MealsList'
 import { CreateMealModal } from '@/components/nutrition/CreateMealModal'
 import { FoodSearchPanel } from '@/components/nutrition/FoodSearchPanel'
+import { LogWorkoutPanel } from '@/components/fitness/LogWorkoutPanel'
+import { WorkoutsList } from '@/components/fitness/WorkoutsList'
 import { useMealsByDate } from '@/hooks/useMealsByDate'
 import { useMealTracker } from '@/hooks/useMealTracker'
-import { addDays, isSameDay, startOfToday, toApiDate } from '@/utils/dateUtils'
+import { useDailySummary } from '@/hooks/useDailySummary'
+import { useWorkoutsByDate } from '@/hooks/useWorkoutsByDate'
+import { useExercises } from '@/hooks/useExercises'
+import { useWorkoutTracker } from '@/hooks/useWorkoutTracker'
+import { addDays, isSameDay, startOfToday, toApiDate, toApiDateTime } from '@/utils/dateUtils'
 
 export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(startOfToday)
   const [activeMealId, setActiveMealId] = useState<number | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isLogWorkoutOpen, setIsLogWorkoutOpen] = useState(false)
   const [expandedMealIds, setExpandedMealIds] = useState<Set<number>>(new Set())
   const [fallbackMealName, setFallbackMealName] = useState('')
   const foodSearchRef = useRef<HTMLDivElement>(null)
 
   const dateKey = toApiDate(selectedDate)
   const { meals, isLoading, error, refetch, setMeals } = useMealsByDate(dateKey)
+  const {
+    summary,
+    isLoading: isSummaryLoading,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useDailySummary(dateKey)
+  const {
+    workouts,
+    isLoading: isWorkoutsLoading,
+    error: workoutsError,
+    refetch: refetchWorkouts,
+  } = useWorkoutsByDate(dateKey)
+  const {
+    exercises,
+    isLoading: isExercisesLoading,
+    error: exercisesError,
+  } = useExercises()
+
+  const refreshSynergyData = useCallback(async () => {
+    await Promise.all([refetchSummary(), refetchWorkouts()])
+  }, [refetchSummary, refetchWorkouts])
+
   const {
     isSubmitting,
     error: trackerError,
@@ -27,19 +56,12 @@ export function DashboardPage() {
     addItem,
   } = useMealTracker(setMeals)
 
-  const dailySummary = useMemo(
-    () =>
-      meals.reduce(
-        (acc, meal) => ({
-          totalCalories: acc.totalCalories + meal.totalCalories,
-          totalProtein: acc.totalProtein + meal.totalProtein,
-          totalCarbs: acc.totalCarbs + meal.totalCarbs,
-          totalFat: acc.totalFat + meal.totalFat,
-        }),
-        { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0 },
-      ),
-    [meals],
-  )
+  const {
+    isSubmitting: isWorkoutSubmitting,
+    error: workoutTrackerError,
+    clearError: clearWorkoutError,
+    logWorkoutEntry,
+  } = useWorkoutTracker(refreshSynergyData)
 
   const activeMeal = meals.find((m) => m.id === activeMealId) ?? null
 
@@ -85,17 +107,34 @@ export function DashboardPage() {
       }
 
       activateMeal(meal.id)
+      await refetchSummary()
     },
-    [createMeal, selectedDate, activateMeal, setMeals],
+    [createMeal, selectedDate, activateMeal, setMeals, refetchSummary],
   )
 
   const handleLogItem = useCallback(
     async (foodId: number, weightG: number): Promise<boolean> => {
       if (!activeMealId) return false
       const result = await addItem(activeMealId, foodId, weightG)
+      if (result !== null) {
+        await refetchSummary()
+        return true
+      }
+      return false
+    },
+    [activeMealId, addItem, refetchSummary],
+  )
+
+  const handleLogWorkout = useCallback(
+    async (exerciseId: number, durationMinutes: number): Promise<boolean> => {
+      const result = await logWorkoutEntry({
+        exerciseId,
+        durationMinutes,
+        loggedAt: toApiDateTime(selectedDate),
+      })
       return result !== null
     },
-    [activeMealId, addItem],
+    [logWorkoutEntry, selectedDate],
   )
 
   const viewingPastDate = !isSameDay(selectedDate, startOfToday())
@@ -115,7 +154,12 @@ export function DashboardPage() {
           </p>
         )}
 
-        <DailySummaryCard summary={dailySummary} />
+        <DailySummaryCard
+          summary={summary}
+          isLoading={isSummaryLoading}
+          error={summaryError}
+          onRetry={() => void refetchSummary()}
+        />
 
         <MealsList
           meals={meals}
@@ -146,6 +190,31 @@ export function DashboardPage() {
               error={trackerError}
             />
           </div>
+        )}
+
+        <WorkoutsList
+          workouts={workouts}
+          isLoading={isWorkoutsLoading}
+          error={workoutsError}
+          onRetry={() => void refetchWorkouts()}
+          onLogWorkout={() => {
+            clearWorkoutError()
+            setIsLogWorkoutOpen(true)
+          }}
+        />
+
+        {isLogWorkoutOpen && (
+          <LogWorkoutPanel
+            exercises={exercises}
+            isLoadingExercises={isExercisesLoading}
+            exercisesError={exercisesError}
+            onClose={() => {
+              if (!isWorkoutSubmitting) setIsLogWorkoutOpen(false)
+            }}
+            onLogWorkout={handleLogWorkout}
+            isSubmitting={isWorkoutSubmitting}
+            error={workoutTrackerError}
+          />
         )}
       </div>
 
