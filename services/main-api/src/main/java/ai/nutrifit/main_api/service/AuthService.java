@@ -1,5 +1,6 @@
 package ai.nutrifit.main_api.service;
 
+import ai.nutrifit.main_api.dto.ChangePasswordRequest;
 import ai.nutrifit.main_api.dto.LoginRequest;
 import ai.nutrifit.main_api.dto.RegisterRequest;
 import ai.nutrifit.main_api.dto.TokenResponse;
@@ -62,6 +63,20 @@ public class AuthService {
         user.setRole("ROLE_USER");
 
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        refreshTokenRepository.deleteByUser(user);
     }
 
     @Transactional
