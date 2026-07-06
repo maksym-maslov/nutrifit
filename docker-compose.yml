@@ -19,7 +19,6 @@ services:
     env_file: .env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrifit
-      APP_COOKIE_SECURE: "false"
       ML_API_BASE_URL: http://ml-api:8000
     depends_on:
       postgres:
@@ -48,6 +47,9 @@ services:
     build: ./frontend
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs/tls:/etc/nginx/certs:ro
     depends_on:
       - main-api
 
