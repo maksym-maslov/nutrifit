@@ -8,6 +8,16 @@ export interface FoodItem {
   fatPer100g: number
 }
 
+export interface FoodRecommendation {
+  id: number
+  name: string
+  brand: string | null
+  caloriesPer100g: number
+  proteinPer100g: number
+  carbsPer100g: number
+  fatPer100g: number
+}
+
 export interface MealItem {
   id: number
   food: FoodItem
@@ -85,6 +95,10 @@ export function mapFoodDto(dto: FoodDictionaryResponseDto): FoodItem {
     carbsPer100g: dto.carbsPer100g,
     fatPer100g: dto.fatPer100g,
   }
+}
+
+export function mapRecommendationDto(dto: FoodDictionaryResponseDto): FoodRecommendation {
+  return mapFoodDto(dto)
 }
 
 export function mapMealItemDto(dto: MealItemResponseDto): MealItem {

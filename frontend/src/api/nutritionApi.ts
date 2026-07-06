@@ -4,7 +4,9 @@ import {
   type MealResponseDto,
   mapFoodDto,
   mapMealDto,
+  mapRecommendationDto,
   type FoodItem,
+  type FoodRecommendation,
   type Meal,
 } from '@/types/nutrition'
 
@@ -38,4 +40,11 @@ export async function searchFoods(query: string): Promise<FoodItem[]> {
     { params: { query } },
   )
   return data.map(mapFoodDto)
+}
+
+export async function fetchRecommendations(date: string): Promise<FoodRecommendation[]> {
+  const { data } = await apiClient.get<FoodDictionaryResponseDto[]>('/recommendations', {
+    params: { date },
+  })
+  return data.map(mapRecommendationDto)
 }

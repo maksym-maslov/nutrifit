@@ -5,6 +5,7 @@ import { DailySummaryCard } from '@/components/nutrition/DailySummaryCard'
 import { MealsList } from '@/components/nutrition/MealsList'
 import { CreateMealModal } from '@/components/nutrition/CreateMealModal'
 import { FoodSearchPanel } from '@/components/nutrition/FoodSearchPanel'
+import { SmartRecommendations } from '@/components/nutrition/SmartRecommendations'
 import { LogWorkoutPanel } from '@/components/fitness/LogWorkoutPanel'
 import { WorkoutsList } from '@/components/fitness/WorkoutsList'
 import { useMealsByDate } from '@/hooks/useMealsByDate'
@@ -159,6 +160,18 @@ export function DashboardPage() {
           isLoading={isSummaryLoading}
           error={summaryError}
           onRetry={() => void refetchSummary()}
+        />
+
+        <SmartRecommendations
+          date={dateKey}
+          activeMealId={activeMealId}
+          onLogItem={handleLogItem}
+          onLogSuccess={() => void refetchSummary()}
+          onNeedMeal={() => {
+            clearError()
+            setIsCreateModalOpen(true)
+          }}
+          isSubmitting={isSubmitting}
         />
 
         <MealsList

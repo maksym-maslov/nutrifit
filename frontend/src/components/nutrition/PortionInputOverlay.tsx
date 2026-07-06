@@ -10,6 +10,8 @@ interface PortionInputOverlayProps {
   onClose: () => void
   onLogItem: (weightG: number) => Promise<boolean>
   isSubmitting: boolean
+  defaultWeightG?: number
+  title?: string
 }
 
 export function PortionInputOverlay({
@@ -18,16 +20,18 @@ export function PortionInputOverlay({
   onClose,
   onLogItem,
   isSubmitting,
+  defaultWeightG,
+  title = 'Log Portion',
 }: PortionInputOverlayProps) {
   const [weightG, setWeightG] = useState('')
   const [fieldError, setFieldError] = useState<string | undefined>()
 
   useEffect(() => {
     if (food) {
-      setWeightG('')
+      setWeightG(defaultWeightG !== undefined ? String(defaultWeightG) : '')
       setFieldError(undefined)
     }
-  }, [food])
+  }, [food, defaultWeightG])
 
   const handleClose = () => {
     if (isSubmitting) return
@@ -53,7 +57,7 @@ export function PortionInputOverlay({
   if (!food) return null
 
   return (
-    <Modal isOpen={!!food} onClose={handleClose} title="Log Portion">
+    <Modal isOpen={!!food} onClose={handleClose} title={title}>
       <div className="space-y-4">
         <div className="rounded-xl border border-ink-border bg-ink px-4 py-3">
           <p className="text-sm font-semibold text-white">{food.name}</p>
