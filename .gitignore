@@ -38,7 +38,7 @@ out/
 ### Secrets ###
 .env
 **/src/main/resources/certs/
-certs/tls/*.pem
+*.pem
 
 ### FastAPI ###
 .venv/
