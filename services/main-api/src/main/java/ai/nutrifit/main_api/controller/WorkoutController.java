@@ -1,6 +1,7 @@
 package ai.nutrifit.main_api.controller;
 
 import ai.nutrifit.main_api.dto.LogWorkoutRequest;
+import ai.nutrifit.main_api.dto.UpdateWorkoutRequest;
 import ai.nutrifit.main_api.dto.WorkoutLogResponse;
 import ai.nutrifit.main_api.service.WorkoutService;
 import jakarta.validation.Valid;
@@ -24,6 +25,21 @@ public class WorkoutController {
     public ResponseEntity<WorkoutLogResponse> logWorkout(@Valid @RequestBody LogWorkoutRequest request) {
         WorkoutLogResponse response = workoutService.logWorkout(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<WorkoutLogResponse> updateWorkout(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateWorkoutRequest request
+    ) {
+        WorkoutLogResponse response = workoutService.updateWorkout(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteWorkout(@PathVariable Long id) {
+        workoutService.deleteWorkout(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping
