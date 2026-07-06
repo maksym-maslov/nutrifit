@@ -13,9 +13,13 @@ services:
   main-api:
     build: ./services/main-api
     env_file: .env
+    volumes:
+      - ./certs/jwt:/run/secrets/jwt:ro
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nutrifit
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       ML_API_BASE_URL: http://ml-api:8000
+      RSA_PUBLIC_KEY: file:/run/secrets/jwt/public.pem
+      RSA_PRIVATE_KEY: file:/run/secrets/jwt/private.pem
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,7 +34,7 @@ services:
     build: ./services/ml-api
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/nutrifit
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
       postgres:
         condition: service_healthy
