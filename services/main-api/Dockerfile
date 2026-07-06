@@ -11,6 +11,8 @@ RUN chmod +x gradlew && ./gradlew bootJar -x test --no-daemon
 
 FROM eclipse-temurin:25-jre-alpine
 
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 COPY --from=build /app/build/libs/main-api-0.0.1-SNAPSHOT.jar app.jar
