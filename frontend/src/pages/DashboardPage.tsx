@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { DateNavigator } from '@/components/nutrition/DateNavigator'
 import { DailySummaryCard } from '@/components/nutrition/DailySummaryCard'
@@ -11,6 +11,7 @@ import { SmartRecommendations } from '@/components/nutrition/SmartRecommendation
 import { LogWorkoutPanel } from '@/components/fitness/LogWorkoutPanel'
 import { EditWorkoutModal } from '@/components/fitness/EditWorkoutModal'
 import { WorkoutsList } from '@/components/fitness/WorkoutsList'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useMealsByDate } from '@/hooks/useMealsByDate'
 import { useMealTracker } from '@/hooks/useMealTracker'
 import { useDailySummary } from '@/hooks/useDailySummary'
@@ -18,7 +19,36 @@ import { useWorkoutsByDate } from '@/hooks/useWorkoutsByDate'
 import { useExercises } from '@/hooks/useExercises'
 import { useWorkoutTracker } from '@/hooks/useWorkoutTracker'
 import { addDays, isSameDay, startOfToday, toApiDate, toApiDateTime } from '@/utils/dateUtils'
+import {
+  getRecentExercisesFromWorkouts,
+  getRecentFoodsFromMeals,
+} from '@/utils/searchPickerUtils'
 import type { MealItem } from '@/types/nutrition'
+
+type DeleteTarget =
+  | { type: 'meal'; mealId: number; name: string }
+  | { type: 'item'; mealId: number; itemId: number; label: string }
+  | { type: 'workout'; workoutId: number; label: string }
+
+function getDeleteDialogCopy(target: DeleteTarget): { title: string; message: string } {
+  switch (target.type) {
+    case 'meal':
+      return {
+        title: 'Delete meal?',
+        message: `Delete ${target.name} and all its items? This cannot be undone.`,
+      }
+    case 'item':
+      return {
+        title: 'Remove item?',
+        message: `Remove ${target.label} from this meal?`,
+      }
+    case 'workout':
+      return {
+        title: 'Delete workout?',
+        message: `Delete ${target.label}? This cannot be undone.`,
+      }
+  }
+}
 
 export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(startOfToday)
@@ -31,6 +61,7 @@ export function DashboardPage() {
   const [editingWorkoutId, setEditingWorkoutId] = useState<number | null>(null)
   const [expandedMealIds, setExpandedMealIds] = useState<Set<number>>(new Set())
   const [fallbackMealName, setFallbackMealName] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const foodSearchRef = useRef<HTMLDivElement>(null)
 
   const dateKey = toApiDate(selectedDate)
@@ -82,6 +113,8 @@ export function DashboardPage() {
   const activeMeal = meals.find((m) => m.id === activeMealId) ?? null
   const editingMeal = meals.find((m) => m.id === editingMealId) ?? null
   const editingWorkout = workouts.find((w) => w.id === editingWorkoutId) ?? null
+  const recentFoods = useMemo(() => getRecentFoodsFromMeals(meals), [meals])
+  const recentExercises = useMemo(() => getRecentExercisesFromWorkouts(workouts), [workouts])
 
   const scrollToFoodSearch = useCallback(() => {
     requestAnimationFrame(() => {
@@ -164,27 +197,13 @@ export function DashboardPage() {
   )
 
   const handleDeleteMeal = useCallback(
-    async (mealId: number) => {
-      if (!window.confirm('Delete this meal and all its items?')) return
-
+    (mealId: number) => {
+      const meal = meals.find((m) => m.id === mealId)
+      if (!meal) return
       clearError()
-      const success = await removeMeal(mealId)
-      if (success) {
-        if (activeMealId === mealId) {
-          setActiveMealId(null)
-        }
-        setExpandedMealIds((prev) => {
-          const next = new Set(prev)
-          next.delete(mealId)
-          return next
-        })
-        if (editingMealId === mealId) {
-          setEditingMealId(null)
-        }
-        await refetchSummary()
-      }
+      setDeleteTarget({ type: 'meal', mealId, name: meal.name })
     },
-    [clearError, removeMeal, activeMealId, editingMealId, refetchSummary],
+    [meals, clearError],
   )
 
   const handleEditItem = useCallback(
@@ -210,20 +229,19 @@ export function DashboardPage() {
   )
 
   const handleDeleteItem = useCallback(
-    async (mealId: number, itemId: number) => {
-      if (!window.confirm('Remove this item from the meal?')) return
-
+    (mealId: number, itemId: number) => {
+      const meal = meals.find((m) => m.id === mealId)
+      const item = meal?.mealItems.find((i) => i.id === itemId)
+      if (!item) return
       clearError()
-      const result = await removeItem(mealId, itemId)
-      if (result !== null) {
-        if (editingItem?.id === itemId) {
-          setEditingItem(null)
-          setEditingItemMealId(null)
-        }
-        await refetchSummary()
-      }
+      setDeleteTarget({
+        type: 'item',
+        mealId,
+        itemId,
+        label: `${item.weightG}g ${item.food.name}`,
+      })
     },
-    [clearError, removeItem, editingItem, refetchSummary],
+    [meals, clearError],
   )
 
   const handleLogWorkout = useCallback(
@@ -262,22 +280,81 @@ export function DashboardPage() {
   )
 
   const handleDeleteWorkout = useCallback(
-    async (workoutId: number) => {
-      if (!window.confirm('Delete this workout?')) return
-
+    (workoutId: number) => {
+      const workout = workouts.find((w) => w.id === workoutId)
+      if (!workout) return
       clearWorkoutError()
-      const success = await removeWorkoutEntry(workoutId)
-      if (success) {
-        if (editingWorkoutId === workoutId) {
-          setEditingWorkoutId(null)
-        }
-        await refetchSummary()
-      }
+      setDeleteTarget({
+        type: 'workout',
+        workoutId,
+        label: `${workout.exercise.name} (${workout.durationMinutes} min)`,
+      })
     },
-    [clearWorkoutError, removeWorkoutEntry, editingWorkoutId, refetchSummary],
+    [workouts, clearWorkoutError],
   )
 
+  const handleConfirmDelete = useCallback(async () => {
+    if (deleteTarget === null) return
+
+    if (deleteTarget.type === 'meal') {
+      const { mealId } = deleteTarget
+      const success = await removeMeal(mealId)
+      if (success) {
+        if (activeMealId === mealId) {
+          setActiveMealId(null)
+        }
+        setExpandedMealIds((prev) => {
+          const next = new Set(prev)
+          next.delete(mealId)
+          return next
+        })
+        if (editingMealId === mealId) {
+          setEditingMealId(null)
+        }
+        setDeleteTarget(null)
+        await refetchSummary()
+      }
+      return
+    }
+
+    if (deleteTarget.type === 'item') {
+      const { mealId, itemId } = deleteTarget
+      const result = await removeItem(mealId, itemId)
+      if (result !== null) {
+        if (editingItem?.id === itemId) {
+          setEditingItem(null)
+          setEditingItemMealId(null)
+        }
+        setDeleteTarget(null)
+        await refetchSummary()
+      }
+      return
+    }
+
+    const { workoutId } = deleteTarget
+    const success = await removeWorkoutEntry(workoutId)
+    if (success) {
+      if (editingWorkoutId === workoutId) {
+        setEditingWorkoutId(null)
+      }
+      setDeleteTarget(null)
+      await refetchSummary()
+    }
+  }, [
+    deleteTarget,
+    removeMeal,
+    removeItem,
+    removeWorkoutEntry,
+    activeMealId,
+    editingMealId,
+    editingItem,
+    editingWorkoutId,
+    refetchSummary,
+  ])
+
   const viewingPastDate = !isSameDay(selectedDate, startOfToday())
+  const deleteDialogCopy =
+    deleteTarget !== null ? getDeleteDialogCopy(deleteTarget) : null
 
   return (
     <AppShell>
@@ -337,6 +414,7 @@ export function DashboardPage() {
             <FoodSearchPanel
               activeMealId={activeMealId}
               activeMealName={activeMeal?.name ?? fallbackMealName}
+              recentFoods={recentFoods}
               onDone={() => {
                 clearError()
                 setActiveMealId(null)
@@ -364,6 +442,7 @@ export function DashboardPage() {
         {isLogWorkoutOpen && (
           <LogWorkoutPanel
             exercises={exercises}
+            recentExercises={recentExercises}
             isLoadingExercises={isExercisesLoading}
             exercisesError={exercisesError}
             onClose={() => {
@@ -435,6 +514,7 @@ export function DashboardPage() {
         isOpen={editingWorkoutId !== null}
         workout={editingWorkout}
         exercises={exercises}
+        recentExercises={recentExercises}
         isLoadingExercises={isExercisesLoading}
         onClose={() => {
           if (!isWorkoutSubmitting) setEditingWorkoutId(null)
@@ -443,6 +523,18 @@ export function DashboardPage() {
         isSubmitting={isWorkoutSubmitting}
         error={workoutTrackerError}
       />
+
+      {deleteTarget !== null && deleteDialogCopy !== null && (
+        <ConfirmDialog
+          isOpen
+          title={deleteDialogCopy.title}
+          message={deleteDialogCopy.message}
+          confirmLabel={deleteTarget.type === 'item' ? 'Remove' : 'Delete'}
+          isConfirming={isSubmitting || isWorkoutSubmitting}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </AppShell>
   )
 }

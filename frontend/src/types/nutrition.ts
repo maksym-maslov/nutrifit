@@ -69,8 +69,7 @@ export interface FoodDictionaryResponseDto {
 
 export interface MealItemResponseDto {
   id: number
-  foodId: number
-  foodName: string
+  food: FoodDictionaryResponseDto
   weightG: number
   itemCalories: number
   itemProtein: number
@@ -113,15 +112,7 @@ export function mapRecommendationDto(dto: FoodDictionaryResponseDto): FoodRecomm
 export function mapMealItemDto(dto: MealItemResponseDto): MealItem {
   return {
     id: dto.id,
-    food: {
-      id: dto.foodId,
-      name: dto.foodName,
-      brand: null,
-      caloriesPer100g: 0,
-      proteinPer100g: 0,
-      carbsPer100g: 0,
-      fatPer100g: 0,
-    },
+    food: mapFoodDto(dto.food),
     weightG: dto.weightG,
     itemCalories: dto.itemCalories,
     itemProtein: dto.itemProtein,

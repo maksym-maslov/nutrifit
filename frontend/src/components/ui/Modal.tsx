@@ -4,10 +4,21 @@ interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title?: string
+  panelClassName?: string
+  ariaLabelledBy?: string
+  ariaDescribedBy?: string
   children: ReactNode
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  panelClassName,
+  ariaLabelledBy,
+  ariaDescribedBy,
+  children,
+}: ModalProps) {
   useEffect(() => {
     if (!isOpen) return
 
@@ -37,8 +48,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
-        className="relative w-full max-w-lg mx-4 mb-4 sm:mb-0 rounded-2xl border border-ink-border bg-ink-light shadow-2xl animate-slide-up"
+        aria-labelledby={title ? 'modal-title' : ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
+        className={`relative w-full max-w-lg mx-4 mb-4 sm:mb-0 rounded-2xl border border-ink-border bg-ink-light shadow-2xl animate-slide-up ${panelClassName ?? ''}`}
       >
         {title && (
           <div className="px-5 pt-5 pb-3 border-b border-ink-border">

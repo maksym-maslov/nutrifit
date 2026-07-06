@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Spinner } from '@/components/ui/Spinner'
+import {
+  filterExercisesByQuery,
+  isSearchQueryActive,
+  MIN_SEARCH_QUERY_LENGTH,
+} from '@/utils/searchPickerUtils'
 import type { Exercise } from '@/types/fitness'
 
 interface LogWorkoutPanelProps {
   exercises: Exercise[]
+  recentExercises: Exercise[]
   isLoadingExercises: boolean
   exercisesError: string | null
   onClose: () => void
@@ -12,8 +18,38 @@ interface LogWorkoutPanelProps {
   error: string | null
 }
 
+function ExerciseResultRow({
+  exercise,
+  isSelected,
+  onSelect,
+}: {
+  exercise: Exercise
+  isSelected: boolean
+  onSelect: (exercise: Exercise) => void
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(exercise)}
+        className={`w-full min-h-[44px] px-4 py-3 text-left transition-colors ${
+          isSelected
+            ? 'bg-mint/10 ring-1 ring-inset ring-mint/30'
+            : 'hover:bg-ink'
+        }`}
+      >
+        <p className="text-sm font-medium text-white truncate">{exercise.name}</p>
+        <p className="text-xs text-white/40 mt-0.5">
+          {exercise.category} · MET {exercise.metValue}
+        </p>
+      </button>
+    </li>
+  )
+}
+
 export function LogWorkoutPanel({
   exercises,
+  recentExercises,
   isLoadingExercises,
   exercisesError,
   onClose,
@@ -25,15 +61,12 @@ export function LogWorkoutPanel({
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null)
   const [durationMinutes, setDurationMinutes] = useState('')
 
+  const searchActive = isSearchQueryActive(query)
+
   const filteredExercises = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    if (!normalized) return exercises
-    return exercises.filter(
-      (exercise) =>
-        exercise.name.toLowerCase().includes(normalized) ||
-        exercise.category.toLowerCase().includes(normalized),
-    )
-  }, [exercises, query])
+    if (!searchActive) return []
+    return filterExercisesByQuery(exercises, query)
+  }, [exercises, query, searchActive])
 
   const parsedDuration = Number(durationMinutes)
   const isDurationValid = Number.isInteger(parsedDuration) && parsedDuration > 0
@@ -87,35 +120,46 @@ export function LogWorkoutPanel({
         <p className="mt-2 text-xs text-red-400">{exercisesError}</p>
       )}
 
-      {!isLoadingExercises && filteredExercises.length === 0 && !exercisesError && (
+      {!isLoadingExercises && !searchActive && recentExercises.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+            Recently logged
+          </p>
+          <ul className="max-h-48 overflow-y-auto rounded-xl border border-ink-border divide-y divide-ink-border">
+            {recentExercises.map((exercise) => (
+              <ExerciseResultRow
+                key={exercise.id}
+                exercise={exercise}
+                isSelected={selectedExercise?.id === exercise.id}
+                onSelect={setSelectedExercise}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!isLoadingExercises && !searchActive && recentExercises.length === 0 && !exercisesError && (
         <p className="mt-3 text-sm text-white/40 text-center py-2">
-          {query.trim() ? `No exercises found for "${query.trim()}"` : 'No exercises available.'}
+          Type at least {MIN_SEARCH_QUERY_LENGTH} characters to search exercises
         </p>
       )}
 
-      {filteredExercises.length > 0 && (
+      {!isLoadingExercises && searchActive && filteredExercises.length === 0 && !exercisesError && (
+        <p className="mt-3 text-sm text-white/40 text-center py-2">
+          No exercises found for &ldquo;{query.trim()}&rdquo;
+        </p>
+      )}
+
+      {!isLoadingExercises && searchActive && filteredExercises.length > 0 && (
         <ul className="mt-3 max-h-48 overflow-y-auto rounded-xl border border-ink-border divide-y divide-ink-border">
-          {filteredExercises.map((exercise) => {
-            const isSelected = selectedExercise?.id === exercise.id
-            return (
-              <li key={exercise.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedExercise(exercise)}
-                  className={`w-full min-h-[44px] px-4 py-3 text-left transition-colors ${
-                    isSelected
-                      ? 'bg-mint/10 ring-1 ring-inset ring-mint/30'
-                      : 'hover:bg-ink'
-                  }`}
-                >
-                  <p className="text-sm font-medium text-white truncate">{exercise.name}</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {exercise.category} · MET {exercise.metValue}
-                  </p>
-                </button>
-              </li>
-            )
-          })}
+          {filteredExercises.map((exercise) => (
+            <ExerciseResultRow
+              key={exercise.id}
+              exercise={exercise}
+              isSelected={selectedExercise?.id === exercise.id}
+              onSelect={setSelectedExercise}
+            />
+          ))}
         </ul>
       )}
 

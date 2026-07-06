@@ -43,9 +43,7 @@ export interface ExerciseDictionaryResponseDto {
 
 export interface WorkoutLogResponseDto {
   id: number
-  exerciseId: number
-  exerciseName: string
-  category: string
+  exercise: ExerciseDictionaryResponseDto
   durationMinutes: number
   caloriesBurned: number
   loggedAt: string
@@ -80,12 +78,7 @@ export function mapExerciseDto(dto: ExerciseDictionaryResponseDto): Exercise {
 export function mapWorkoutLogDto(dto: WorkoutLogResponseDto): WorkoutLog {
   return {
     id: dto.id,
-    exercise: {
-      id: dto.exerciseId,
-      name: dto.exerciseName,
-      metValue: 0,
-      category: dto.category,
-    },
+    exercise: mapExerciseDto(dto.exercise),
     durationMinutes: dto.durationMinutes,
     caloriesBurned: dto.caloriesBurned,
     loggedAt: dto.loggedAt,
