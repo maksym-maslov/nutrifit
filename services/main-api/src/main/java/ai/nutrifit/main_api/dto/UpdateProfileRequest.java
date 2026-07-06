@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.time.LocalDate;
 
-public record OnboardingRequest(
+public record UpdateProfileRequest(
         @NotNull @Past LocalDate birthday,
         @NotBlank String gender,
         @NotNull @Positive Float heightCm,
