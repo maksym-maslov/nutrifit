@@ -1,9 +1,11 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import ProgrammingError
 
 from exceptions import EmptyFoodDictionaryError
 from recommendation_engine import FoodRecommender
@@ -15,10 +17,38 @@ from schemas import (
 
 logger = logging.getLogger(__name__)
 
+FOOD_DICTIONARY_RETRY_ATTEMPTS = 15
+FOOD_DICTIONARY_RETRY_DELAY_SECONDS = 2
+
+
+def _is_missing_food_dictionary_table(exc: ProgrammingError) -> bool:
+    message = str(exc).lower()
+    return "food_dictionary" in message and "does not exist" in message
+
+
+async def _create_recommender() -> FoodRecommender:
+    for attempt in range(1, FOOD_DICTIONARY_RETRY_ATTEMPTS + 1):
+        try:
+            return FoodRecommender()
+        except ProgrammingError as exc:
+            if not _is_missing_food_dictionary_table(exc):
+                raise
+            if attempt == FOOD_DICTIONARY_RETRY_ATTEMPTS:
+                raise
+            logger.warning(
+                "food_dictionary table not ready (attempt %s/%s), retrying in %ss",
+                attempt,
+                FOOD_DICTIONARY_RETRY_ATTEMPTS,
+                FOOD_DICTIONARY_RETRY_DELAY_SECONDS,
+            )
+            await asyncio.sleep(FOOD_DICTIONARY_RETRY_DELAY_SECONDS)
+
+    raise RuntimeError("Failed to initialize FoodRecommender")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    app.state.recommender = FoodRecommender()
+    app.state.recommender = await _create_recommender()
     logger.info("FoodRecommender initialized with %s foods", app.state.recommender.food_count)
     yield
 
