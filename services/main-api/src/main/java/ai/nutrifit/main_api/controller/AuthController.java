@@ -1,8 +1,10 @@
 package ai.nutrifit.main_api.controller;
 
+import ai.nutrifit.main_api.dto.ChangePasswordRequest;
 import ai.nutrifit.main_api.dto.LoginRequest;
 import ai.nutrifit.main_api.dto.RegisterRequest;
 import ai.nutrifit.main_api.dto.TokenResponse;
+import ai.nutrifit.main_api.security.AuthenticationFacade;
 import ai.nutrifit.main_api.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -13,9 +15,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
     private final AuthService authService;
+    private final AuthenticationFacade authenticationFacade;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AuthenticationFacade authenticationFacade) {
         this.authService = authService;
+        this.authenticationFacade = authenticationFacade;
     }
 
     @PostMapping("/register")
@@ -33,5 +37,12 @@ public class AuthController {
     public ResponseEntity<TokenResponse> refresh(
             @CookieValue(name = "refreshToken") String refreshToken) {
         return ResponseEntity.ok(authService.refresh(refreshToken));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        Long userId = authenticationFacade.getCurrentUserId();
+        authService.changePassword(userId, request);
+        return ResponseEntity.noContent().build();
     }
 }
