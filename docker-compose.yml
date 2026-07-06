@@ -24,8 +24,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      ml-api:
-        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   ml-api:
     build: ./services/ml-api
@@ -36,6 +40,8 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/nutrifit
     depends_on:
       postgres:
+        condition: service_healthy
+      main-api:
         condition: service_healthy
 
   frontend:
