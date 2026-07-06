@@ -1,0 +1,7 @@
+ALTER TABLE users ADD COLUMN birthday DATE;
+
+UPDATE users
+SET birthday = MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int - age, 1, 1)
+WHERE age IS NOT NULL;
+
+ALTER TABLE users DROP COLUMN age;
