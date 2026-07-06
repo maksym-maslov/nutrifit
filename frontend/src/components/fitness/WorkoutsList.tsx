@@ -8,6 +8,8 @@ interface WorkoutsListProps {
   error: string | null
   onRetry: () => void
   onLogWorkout: () => void
+  onEditWorkout: (workoutId: number) => void
+  onDeleteWorkout: (workoutId: number) => void
 }
 
 export function WorkoutsList({
@@ -16,6 +18,8 @@ export function WorkoutsList({
   error,
   onRetry,
   onLogWorkout,
+  onEditWorkout,
+  onDeleteWorkout,
 }: WorkoutsListProps) {
   return (
     <section className="mt-6">
@@ -66,7 +70,12 @@ export function WorkoutsList({
       ) : (
         <div className="space-y-3">
           {workouts.map((workout) => (
-            <WorkoutCard key={workout.id} workout={workout} />
+            <WorkoutCard
+              key={workout.id}
+              workout={workout}
+              onEdit={() => onEditWorkout(workout.id)}
+              onDelete={() => onDeleteWorkout(workout.id)}
+            />
           ))}
         </div>
       )}

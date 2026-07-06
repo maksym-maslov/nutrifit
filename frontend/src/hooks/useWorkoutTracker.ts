@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
 import axios from 'axios'
-import { logWorkout } from '@/api/fitnessApi'
+import { deleteWorkout, logWorkout, updateWorkout } from '@/api/fitnessApi'
 import type { WorkoutLog } from '@/types/fitness'
 import type { ProblemDetail } from '@/types/auth'
 
@@ -10,14 +10,35 @@ interface LogWorkoutParams {
   loggedAt: string
 }
 
+interface UpdateWorkoutParams {
+  exerciseId: number
+  durationMinutes: number
+}
+
 interface UseWorkoutTrackerResult {
   isSubmitting: boolean
   error: string | null
   clearError: () => void
   logWorkoutEntry: (params: LogWorkoutParams) => Promise<WorkoutLog | null>
+  updateWorkoutEntry: (
+    id: number,
+    params: UpdateWorkoutParams,
+  ) => Promise<WorkoutLog | null>
+  removeWorkoutEntry: (id: number) => Promise<boolean>
 }
 
-export function useWorkoutTracker(onSuccess?: () => void | Promise<void>): UseWorkoutTrackerResult {
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const detail = err.response?.data as ProblemDetail | undefined
+    return detail?.detail ?? fallback
+  }
+  return fallback
+}
+
+export function useWorkoutTracker(
+  setWorkouts: Dispatch<SetStateAction<WorkoutLog[]>>,
+  onSuccess?: () => void | Promise<void>,
+): UseWorkoutTrackerResult {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,22 +50,65 @@ export function useWorkoutTracker(onSuccess?: () => void | Promise<void>): UseWo
       setError(null)
       try {
         const result = await logWorkout(params)
+        setWorkouts((prev) => [...prev, result])
         await onSuccess?.()
         return result
       } catch (err) {
-        if (axios.isAxiosError(err)) {
-          const detail = err.response?.data as ProblemDetail | undefined
-          setError(detail?.detail ?? 'Failed to log workout.')
-        } else {
-          setError('Failed to log workout.')
-        }
+        setError(getErrorMessage(err, 'Failed to log workout.'))
         return null
       } finally {
         setIsSubmitting(false)
       }
     },
-    [onSuccess],
+    [setWorkouts, onSuccess],
   )
 
-  return { isSubmitting, error, clearError, logWorkoutEntry }
+  const updateWorkoutEntry = useCallback(
+    async (id: number, params: UpdateWorkoutParams): Promise<WorkoutLog | null> => {
+      setIsSubmitting(true)
+      setError(null)
+      try {
+        const result = await updateWorkout(id, params)
+        setWorkouts((prev) =>
+          prev.map((workout) => (workout.id === id ? result : workout)),
+        )
+        await onSuccess?.()
+        return result
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to update workout.'))
+        return null
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [setWorkouts, onSuccess],
+  )
+
+  const removeWorkoutEntry = useCallback(
+    async (id: number): Promise<boolean> => {
+      setIsSubmitting(true)
+      setError(null)
+      try {
+        await deleteWorkout(id)
+        setWorkouts((prev) => prev.filter((workout) => workout.id !== id))
+        await onSuccess?.()
+        return true
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to delete workout.'))
+        return false
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [setWorkouts, onSuccess],
+  )
+
+  return {
+    isSubmitting,
+    error,
+    clearError,
+    logWorkoutEntry,
+    updateWorkoutEntry,
+    removeWorkoutEntry,
+  }
 }

@@ -4,9 +4,12 @@ import { DateNavigator } from '@/components/nutrition/DateNavigator'
 import { DailySummaryCard } from '@/components/nutrition/DailySummaryCard'
 import { MealsList } from '@/components/nutrition/MealsList'
 import { CreateMealModal } from '@/components/nutrition/CreateMealModal'
+import { EditMealModal } from '@/components/nutrition/EditMealModal'
+import { EditMealItemModal } from '@/components/nutrition/EditMealItemModal'
 import { FoodSearchPanel } from '@/components/nutrition/FoodSearchPanel'
 import { SmartRecommendations } from '@/components/nutrition/SmartRecommendations'
 import { LogWorkoutPanel } from '@/components/fitness/LogWorkoutPanel'
+import { EditWorkoutModal } from '@/components/fitness/EditWorkoutModal'
 import { WorkoutsList } from '@/components/fitness/WorkoutsList'
 import { useMealsByDate } from '@/hooks/useMealsByDate'
 import { useMealTracker } from '@/hooks/useMealTracker'
@@ -15,12 +18,17 @@ import { useWorkoutsByDate } from '@/hooks/useWorkoutsByDate'
 import { useExercises } from '@/hooks/useExercises'
 import { useWorkoutTracker } from '@/hooks/useWorkoutTracker'
 import { addDays, isSameDay, startOfToday, toApiDate, toApiDateTime } from '@/utils/dateUtils'
+import type { MealItem } from '@/types/nutrition'
 
 export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(startOfToday)
   const [activeMealId, setActiveMealId] = useState<number | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [editingMealId, setEditingMealId] = useState<number | null>(null)
+  const [editingItem, setEditingItem] = useState<MealItem | null>(null)
+  const [editingItemMealId, setEditingItemMealId] = useState<number | null>(null)
   const [isLogWorkoutOpen, setIsLogWorkoutOpen] = useState(false)
+  const [editingWorkoutId, setEditingWorkoutId] = useState<number | null>(null)
   const [expandedMealIds, setExpandedMealIds] = useState<Set<number>>(new Set())
   const [fallbackMealName, setFallbackMealName] = useState('')
   const foodSearchRef = useRef<HTMLDivElement>(null)
@@ -38,6 +46,7 @@ export function DashboardPage() {
     isLoading: isWorkoutsLoading,
     error: workoutsError,
     refetch: refetchWorkouts,
+    setWorkouts,
   } = useWorkoutsByDate(dateKey)
   const {
     exercises,
@@ -55,6 +64,10 @@ export function DashboardPage() {
     clearError,
     createMeal,
     addItem,
+    updateMealName,
+    removeMeal,
+    updateItem,
+    removeItem,
   } = useMealTracker(setMeals)
 
   const {
@@ -62,9 +75,13 @@ export function DashboardPage() {
     error: workoutTrackerError,
     clearError: clearWorkoutError,
     logWorkoutEntry,
-  } = useWorkoutTracker(refreshSynergyData)
+    updateWorkoutEntry,
+    removeWorkoutEntry,
+  } = useWorkoutTracker(setWorkouts, refreshSynergyData)
 
   const activeMeal = meals.find((m) => m.id === activeMealId) ?? null
+  const editingMeal = meals.find((m) => m.id === editingMealId) ?? null
+  const editingWorkout = workouts.find((w) => w.id === editingWorkoutId) ?? null
 
   const scrollToFoodSearch = useCallback(() => {
     requestAnimationFrame(() => {
@@ -126,6 +143,89 @@ export function DashboardPage() {
     [activeMealId, addItem, refetchSummary],
   )
 
+  const handleEditMeal = useCallback(
+    (mealId: number) => {
+      clearError()
+      setEditingMealId(mealId)
+    },
+    [clearError],
+  )
+
+  const handleUpdateMeal = useCallback(
+    async (name: string) => {
+      if (editingMealId === null) return
+      const result = await updateMealName(editingMealId, name)
+      if (result !== null) {
+        setEditingMealId(null)
+        await refetchSummary()
+      }
+    },
+    [editingMealId, updateMealName, refetchSummary],
+  )
+
+  const handleDeleteMeal = useCallback(
+    async (mealId: number) => {
+      if (!window.confirm('Delete this meal and all its items?')) return
+
+      clearError()
+      const success = await removeMeal(mealId)
+      if (success) {
+        if (activeMealId === mealId) {
+          setActiveMealId(null)
+        }
+        setExpandedMealIds((prev) => {
+          const next = new Set(prev)
+          next.delete(mealId)
+          return next
+        })
+        if (editingMealId === mealId) {
+          setEditingMealId(null)
+        }
+        await refetchSummary()
+      }
+    },
+    [clearError, removeMeal, activeMealId, editingMealId, refetchSummary],
+  )
+
+  const handleEditItem = useCallback(
+    (mealId: number, item: MealItem) => {
+      clearError()
+      setEditingItemMealId(mealId)
+      setEditingItem(item)
+    },
+    [clearError],
+  )
+
+  const handleUpdateItem = useCallback(
+    async (foodId: number, weightG: number) => {
+      if (editingItemMealId === null || editingItem === null) return
+      const result = await updateItem(editingItemMealId, editingItem.id, foodId, weightG)
+      if (result !== null) {
+        setEditingItem(null)
+        setEditingItemMealId(null)
+        await refetchSummary()
+      }
+    },
+    [editingItemMealId, editingItem, updateItem, refetchSummary],
+  )
+
+  const handleDeleteItem = useCallback(
+    async (mealId: number, itemId: number) => {
+      if (!window.confirm('Remove this item from the meal?')) return
+
+      clearError()
+      const result = await removeItem(mealId, itemId)
+      if (result !== null) {
+        if (editingItem?.id === itemId) {
+          setEditingItem(null)
+          setEditingItemMealId(null)
+        }
+        await refetchSummary()
+      }
+    },
+    [clearError, removeItem, editingItem, refetchSummary],
+  )
+
   const handleLogWorkout = useCallback(
     async (exerciseId: number, durationMinutes: number): Promise<boolean> => {
       const result = await logWorkoutEntry({
@@ -136,6 +236,45 @@ export function DashboardPage() {
       return result !== null
     },
     [logWorkoutEntry, selectedDate],
+  )
+
+  const handleEditWorkout = useCallback(
+    (workoutId: number) => {
+      clearWorkoutError()
+      setEditingWorkoutId(workoutId)
+    },
+    [clearWorkoutError],
+  )
+
+  const handleUpdateWorkout = useCallback(
+    async (exerciseId: number, durationMinutes: number) => {
+      if (editingWorkoutId === null) return
+      const result = await updateWorkoutEntry(editingWorkoutId, {
+        exerciseId,
+        durationMinutes,
+      })
+      if (result !== null) {
+        setEditingWorkoutId(null)
+        await refetchSummary()
+      }
+    },
+    [editingWorkoutId, updateWorkoutEntry, refetchSummary],
+  )
+
+  const handleDeleteWorkout = useCallback(
+    async (workoutId: number) => {
+      if (!window.confirm('Delete this workout?')) return
+
+      clearWorkoutError()
+      const success = await removeWorkoutEntry(workoutId)
+      if (success) {
+        if (editingWorkoutId === workoutId) {
+          setEditingWorkoutId(null)
+        }
+        await refetchSummary()
+      }
+    },
+    [clearWorkoutError, removeWorkoutEntry, editingWorkoutId, refetchSummary],
   )
 
   const viewingPastDate = !isSameDay(selectedDate, startOfToday())
@@ -187,6 +326,10 @@ export function DashboardPage() {
           activeMealId={activeMealId}
           onToggleExpand={handleToggleExpand}
           onAddFood={activateMeal}
+          onEditMeal={handleEditMeal}
+          onDeleteMeal={handleDeleteMeal}
+          onEditItem={handleEditItem}
+          onDeleteItem={handleDeleteItem}
         />
 
         {activeMealId !== null && (
@@ -214,6 +357,8 @@ export function DashboardPage() {
             clearWorkoutError()
             setIsLogWorkoutOpen(true)
           }}
+          onEditWorkout={handleEditWorkout}
+          onDeleteWorkout={handleDeleteWorkout}
         />
 
         {isLogWorkoutOpen && (
@@ -259,6 +404,44 @@ export function DashboardPage() {
         onCreate={handleCreateMeal}
         isSubmitting={isSubmitting}
         error={trackerError}
+      />
+
+      <EditMealModal
+        isOpen={editingMealId !== null}
+        initialName={editingMeal?.name ?? ''}
+        onClose={() => {
+          if (!isSubmitting) setEditingMealId(null)
+        }}
+        onUpdate={handleUpdateMeal}
+        isSubmitting={isSubmitting}
+        error={trackerError}
+      />
+
+      <EditMealItemModal
+        isOpen={editingItem !== null}
+        item={editingItem}
+        onClose={() => {
+          if (!isSubmitting) {
+            setEditingItem(null)
+            setEditingItemMealId(null)
+          }
+        }}
+        onUpdate={handleUpdateItem}
+        isSubmitting={isSubmitting}
+        error={trackerError}
+      />
+
+      <EditWorkoutModal
+        isOpen={editingWorkoutId !== null}
+        workout={editingWorkout}
+        exercises={exercises}
+        isLoadingExercises={isExercisesLoading}
+        onClose={() => {
+          if (!isWorkoutSubmitting) setEditingWorkoutId(null)
+        }}
+        onUpdate={handleUpdateWorkout}
+        isSubmitting={isWorkoutSubmitting}
+        error={workoutTrackerError}
       />
     </AppShell>
   )

@@ -34,6 +34,35 @@ export async function addMealItem(
   return mapMealDto(data)
 }
 
+export async function updateMeal(mealId: number, name: string): Promise<Meal> {
+  const { data } = await apiClient.put<MealResponseDto>(`/meals/${mealId}`, { name })
+  return mapMealDto(data)
+}
+
+export async function deleteMeal(mealId: number): Promise<void> {
+  await apiClient.delete(`/meals/${mealId}`)
+}
+
+export async function updateMealItem(
+  mealId: number,
+  itemId: number,
+  foodId: number,
+  weightG: number,
+): Promise<Meal> {
+  const { data } = await apiClient.put<MealResponseDto>(
+    `/meals/${mealId}/items/${itemId}`,
+    { foodId, weightG },
+  )
+  return mapMealDto(data)
+}
+
+export async function deleteMealItem(mealId: number, itemId: number): Promise<Meal> {
+  const { data } = await apiClient.delete<MealResponseDto>(
+    `/meals/${mealId}/items/${itemId}`,
+  )
+  return mapMealDto(data)
+}
+
 export async function searchFoods(query: string): Promise<FoodItem[]> {
   const { data } = await apiClient.get<FoodDictionaryResponseDto[]>(
     '/foods/search',

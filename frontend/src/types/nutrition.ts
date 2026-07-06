@@ -48,6 +48,15 @@ export interface AddMealItemRequest {
   weightG: number
 }
 
+export interface UpdateMealRequest {
+  name: string
+}
+
+export interface UpdateMealItemRequest {
+  foodId: number
+  weightG: number
+}
+
 export interface FoodDictionaryResponseDto {
   id: number
   name: string

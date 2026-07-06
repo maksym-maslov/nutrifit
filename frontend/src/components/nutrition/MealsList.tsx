@@ -1,7 +1,7 @@
 import { MealCard } from '@/components/nutrition/MealCard'
 import { EmptyMealsState } from '@/components/nutrition/EmptyMealsState'
 import { MealsLoadingSkeleton } from '@/components/nutrition/MealsLoadingSkeleton'
-import type { Meal } from '@/types/nutrition'
+import type { Meal, MealItem } from '@/types/nutrition'
 
 interface MealsListProps {
   meals: Meal[]
@@ -13,6 +13,10 @@ interface MealsListProps {
   activeMealId: number | null
   onToggleExpand: (mealId: number) => void
   onAddFood: (mealId: number) => void
+  onEditMeal: (mealId: number) => void
+  onDeleteMeal: (mealId: number) => void
+  onEditItem: (mealId: number, item: MealItem) => void
+  onDeleteItem: (mealId: number, itemId: number) => void
 }
 
 export function MealsList({
@@ -25,6 +29,10 @@ export function MealsList({
   activeMealId,
   onToggleExpand,
   onAddFood,
+  onEditMeal,
+  onDeleteMeal,
+  onEditItem,
+  onDeleteItem,
 }: MealsListProps) {
   return (
     <section className="mt-6">
@@ -64,6 +72,10 @@ export function MealsList({
               isActive={activeMealId === meal.id}
               onToggleExpand={() => onToggleExpand(meal.id)}
               onAddFood={() => onAddFood(meal.id)}
+              onEditMeal={() => onEditMeal(meal.id)}
+              onDeleteMeal={() => onDeleteMeal(meal.id)}
+              onEditItem={(item) => onEditItem(meal.id, item)}
+              onDeleteItem={(itemId) => onDeleteItem(meal.id, itemId)}
             />
           ))}
         </div>

@@ -29,6 +29,11 @@ export interface LogWorkoutRequest {
   loggedAt: string
 }
 
+export interface UpdateWorkoutRequest {
+  exerciseId: number
+  durationMinutes: number
+}
+
 export interface ExerciseDictionaryResponseDto {
   id: number
   name: string

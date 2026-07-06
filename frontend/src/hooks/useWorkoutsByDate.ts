@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import axios from 'axios'
 import { fetchWorkoutsByDate } from '@/api/fitnessApi'
 import type { WorkoutLog } from '@/types/fitness'
@@ -9,6 +9,7 @@ interface UseWorkoutsByDateResult {
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
+  setWorkouts: Dispatch<SetStateAction<WorkoutLog[]>>
 }
 
 export function useWorkoutsByDate(date: string): UseWorkoutsByDateResult {
@@ -38,5 +39,5 @@ export function useWorkoutsByDate(date: string): UseWorkoutsByDateResult {
     void refetch()
   }, [refetch])
 
-  return { workouts, isLoading, error, refetch }
+  return { workouts, isLoading, error, refetch, setWorkouts }
 }

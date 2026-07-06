@@ -8,6 +8,7 @@ import {
   type Exercise,
   type ExerciseDictionaryResponseDto,
   type LogWorkoutRequest,
+  type UpdateWorkoutRequest,
   type WorkoutLog,
   type WorkoutLogResponseDto,
 } from '@/types/fitness'
@@ -20,6 +21,18 @@ export async function fetchExercises(): Promise<Exercise[]> {
 export async function logWorkout(payload: LogWorkoutRequest): Promise<WorkoutLog> {
   const { data } = await apiClient.post<WorkoutLogResponseDto>('/workouts', payload)
   return mapWorkoutLogDto(data)
+}
+
+export async function updateWorkout(
+  id: number,
+  payload: UpdateWorkoutRequest,
+): Promise<WorkoutLog> {
+  const { data } = await apiClient.put<WorkoutLogResponseDto>(`/workouts/${id}`, payload)
+  return mapWorkoutLogDto(data)
+}
+
+export async function deleteWorkout(id: number): Promise<void> {
+  await apiClient.delete(`/workouts/${id}`)
 }
 
 export async function fetchDailySummary(date: string): Promise<DailySummary> {
