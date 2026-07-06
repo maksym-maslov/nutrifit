@@ -3,6 +3,8 @@ package ai.nutrifit.main_api.service;
 import ai.nutrifit.main_api.dto.AddMealItemRequest;
 import ai.nutrifit.main_api.dto.CreateMealRequest;
 import ai.nutrifit.main_api.dto.MealResponse;
+import ai.nutrifit.main_api.dto.UpdateMealItemRequest;
+import ai.nutrifit.main_api.dto.UpdateMealRequest;
 import ai.nutrifit.main_api.entity.FoodDictionary;
 import ai.nutrifit.main_api.entity.Meal;
 import ai.nutrifit.main_api.entity.MealItem;
@@ -55,14 +57,7 @@ public class MealService {
 
     @Transactional
     public MealResponse addItem(Long mealId, AddMealItemRequest request) {
-        Long userId = authenticationFacade.getCurrentUserId();
-
-        Meal meal = mealRepository.findById(mealId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meal not found"));
-
-        if (!meal.getUser().getId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Meal not found");
-        }
+        Meal meal = findOwnedMeal(mealId);
 
         FoodDictionary food = foodDictionaryRepository.findById(request.foodId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Food not found"));
@@ -71,6 +66,42 @@ public class MealService {
         item.setFood(food);
         item.setWeightG(request.weightG());
         meal.addItem(item);
+
+        return MealResponse.from(mealRepository.save(meal));
+    }
+
+    @Transactional
+    public MealResponse updateMeal(Long mealId, UpdateMealRequest request) {
+        Meal meal = findOwnedMeal(mealId);
+        meal.setName(request.name());
+        return MealResponse.from(mealRepository.save(meal));
+    }
+
+    @Transactional
+    public void deleteMeal(Long mealId) {
+        Meal meal = findOwnedMeal(mealId);
+        mealRepository.delete(meal);
+    }
+
+    @Transactional
+    public MealResponse updateItem(Long mealId, Long itemId, UpdateMealItemRequest request) {
+        Meal meal = findOwnedMeal(mealId);
+        MealItem item = findItemInMeal(meal, itemId);
+
+        FoodDictionary food = foodDictionaryRepository.findById(request.foodId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Food not found"));
+
+        item.setFood(food);
+        item.setWeightG(request.weightG());
+
+        return MealResponse.from(mealRepository.save(meal));
+    }
+
+    @Transactional
+    public MealResponse deleteItem(Long mealId, Long itemId) {
+        Meal meal = findOwnedMeal(mealId);
+        MealItem item = findItemInMeal(meal, itemId);
+        meal.getItems().remove(item);
 
         return MealResponse.from(mealRepository.save(meal));
     }
@@ -84,5 +115,18 @@ public class MealService {
         return mealRepository.findByUser_IdAndLoggedAtBetween(userId, start, end).stream()
                 .map(MealResponse::from)
                 .toList();
+    }
+
+    private Meal findOwnedMeal(Long mealId) {
+        Long userId = authenticationFacade.getCurrentUserId();
+        return mealRepository.findByIdAndUser_Id(mealId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meal not found"));
+    }
+
+    private MealItem findItemInMeal(Meal meal, Long itemId) {
+        return meal.getItems().stream()
+                .filter(item -> item.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meal item not found"));
     }
 }
