@@ -6,9 +6,7 @@ import java.time.LocalDateTime;
 
 public record WorkoutLogResponse(
         Long id,
-        Long exerciseId,
-        String exerciseName,
-        String category,
+        ExerciseDictionaryResponse exercise,
         Integer durationMinutes,
         Integer caloriesBurned,
         LocalDateTime loggedAt
@@ -16,9 +14,7 @@ public record WorkoutLogResponse(
     public static WorkoutLogResponse from(WorkoutLog log) {
         return new WorkoutLogResponse(
                 log.getId(),
-                log.getExercise().getId(),
-                log.getExercise().getName(),
-                log.getExercise().getCategory(),
+                ExerciseDictionaryResponse.from(log.getExercise()),
                 log.getDurationMinutes(),
                 log.getCaloriesBurned(),
                 log.getLoggedAt()

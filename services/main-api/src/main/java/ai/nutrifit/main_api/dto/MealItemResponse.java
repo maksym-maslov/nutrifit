@@ -4,8 +4,7 @@ import ai.nutrifit.main_api.entity.MealItem;
 
 public record MealItemResponse(
         Long id,
-        Long foodId,
-        String foodName,
+        FoodDictionaryResponse food,
         Float weightG,
         int itemCalories,
         float itemProtein,
@@ -23,8 +22,7 @@ public record MealItemResponse(
 
         return new MealItemResponse(
                 item.getId(),
-                food.id(),
-                food.name(),
+                food,
                 weightG,
                 itemCalories,
                 itemProtein,
