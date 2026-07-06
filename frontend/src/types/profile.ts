@@ -8,8 +8,8 @@ export type ActivityLevel =
 
 export type Gender = 'MALE' | 'FEMALE'
 
-export interface OnboardingFormData {
-  age: number | ''
+export interface ProfileFormData {
+  birthday: string
   gender: Gender | null
   heightCm: number | ''
   weightKg: number | ''
@@ -17,8 +17,10 @@ export interface OnboardingFormData {
   activityLevel: ActivityLevel | null
 }
 
-export interface OnboardingRequest {
-  age: number
+export type OnboardingFormData = ProfileFormData
+
+export interface ProfileRequest {
+  birthday: string
   gender: Gender
   heightCm: number
   weightKg: number
@@ -26,10 +28,17 @@ export interface OnboardingRequest {
   activityLevel: ActivityLevel
 }
 
+export type OnboardingRequest = ProfileRequest
+
 export interface UserProfileSummary {
   fullName: string | null
   email: string | null
+  birthday: string | null
+  gender: Gender | null
+  heightCm: number | null
   weightKg: number | null
+  fitnessGoal: FitnessGoal | null
+  activityLevel: ActivityLevel | null
   goalCalories: number | null
   goalProteinG: number | null
   goalCarbsG: number | null
@@ -40,7 +49,12 @@ export interface UserProfileSummary {
 export interface UserProfileSummaryDto {
   fullName: string | null
   email: string | null
+  birthday: string | null
+  gender: string | null
+  heightCm: number | null
   weightKg: number | null
+  fitnessGoal: FitnessGoal | null
+  activityLevel: ActivityLevel | null
   goalCalories: number | null
   goalProteinG: number | null
   goalCarbsG: number | null
@@ -48,8 +62,8 @@ export interface UserProfileSummaryDto {
   onboarded: boolean
 }
 
-export interface OnboardingApiPayload {
-  age: number
+export interface ProfileApiPayload {
+  birthday: string
   gender: string
   heightCm: number
   weightKg: number
@@ -57,11 +71,34 @@ export interface OnboardingApiPayload {
   activityLevel: ActivityLevel
 }
 
+export interface UpdateAccountRequest {
+  fullName: string
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+function parseGender(value: string | null): Gender | null {
+  if (!value) return null
+  const normalized = value.toUpperCase()
+  if (normalized === 'MALE' || normalized === 'FEMALE') {
+    return normalized
+  }
+  return null
+}
+
 export function mapProfileSummaryDto(dto: UserProfileSummaryDto): UserProfileSummary {
   return {
     fullName: dto.fullName,
     email: dto.email,
+    birthday: dto.birthday,
+    gender: parseGender(dto.gender),
+    heightCm: dto.heightCm,
     weightKg: dto.weightKg,
+    fitnessGoal: dto.fitnessGoal,
+    activityLevel: dto.activityLevel,
     goalCalories: dto.goalCalories,
     goalProteinG: dto.goalProteinG,
     goalCarbsG: dto.goalCarbsG,
@@ -70,9 +107,9 @@ export function mapProfileSummaryDto(dto: UserProfileSummaryDto): UserProfileSum
   }
 }
 
-export function toOnboardingApiPayload(request: OnboardingRequest): OnboardingApiPayload {
+export function toProfileApiPayload(request: ProfileRequest): ProfileApiPayload {
   return {
-    age: request.age,
+    birthday: request.birthday,
     gender: request.gender.toLowerCase(),
     heightCm: request.heightCm,
     weightKg: request.weightKg,
@@ -81,20 +118,20 @@ export function toOnboardingApiPayload(request: OnboardingRequest): OnboardingAp
   }
 }
 
-export function toOnboardingRequest(formData: OnboardingFormData): OnboardingRequest {
+export function toProfileRequest(formData: ProfileFormData): ProfileRequest {
   if (
-    formData.age === '' ||
+    !formData.birthday ||
     formData.gender === null ||
     formData.heightCm === '' ||
     formData.weightKg === '' ||
     formData.fitnessGoal === null ||
     formData.activityLevel === null
   ) {
-    throw new Error('All onboarding fields are required.')
+    throw new Error('All profile fields are required.')
   }
 
   return {
-    age: formData.age,
+    birthday: formData.birthday,
     gender: formData.gender,
     heightCm: formData.heightCm,
     weightKg: formData.weightKg,
@@ -102,3 +139,21 @@ export function toOnboardingRequest(formData: OnboardingFormData): OnboardingReq
     activityLevel: formData.activityLevel,
   }
 }
+
+export function toOnboardingRequest(formData: OnboardingFormData): OnboardingRequest {
+  return toProfileRequest(formData)
+}
+
+export function profileSummaryToFormData(profile: UserProfileSummary): ProfileFormData {
+  return {
+    birthday: profile.birthday ?? '',
+    gender: profile.gender,
+    heightCm: profile.heightCm ?? '',
+    weightKg: profile.weightKg ?? '',
+    fitnessGoal: profile.fitnessGoal,
+    activityLevel: profile.activityLevel,
+  }
+}
+
+// Backward-compatible aliases
+export const toOnboardingApiPayload = toProfileApiPayload

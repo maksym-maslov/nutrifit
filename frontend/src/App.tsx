@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { OnboardingPage } from '@/pages/OnboardingPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth()
@@ -90,6 +91,17 @@ export function App() {
           <ProtectedRoute>
             <OnboardedRoute>
               <DashboardPage />
+            </OnboardedRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <OnboardedRoute>
+              <ProfilePage />
             </OnboardedRoute>
           </ProtectedRoute>
         }
