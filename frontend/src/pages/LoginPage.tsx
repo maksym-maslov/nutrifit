@@ -35,6 +35,7 @@ export function LoginPage() {
   const [values, setValues] = useState<FormState>({ email: '', password: '' })
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [serverError, setServerError] = useState<string | null>(null)
+  const [isEmailUnverified, setIsEmailUnverified] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange =
@@ -45,6 +46,7 @@ export function LoginPage() {
         setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
       }
       if (serverError) setServerError(null)
+      if (isEmailUnverified) setIsEmailUnverified(false)
     }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -57,15 +59,20 @@ export function LoginPage() {
 
     setIsSubmitting(true)
     setServerError(null)
+    setIsEmailUnverified(false)
 
     try {
       await login(values.email, values.password)
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const problem = err.response?.data as ProblemDetail | undefined
-        setServerError(
-          problem?.detail ?? 'Invalid email or password. Please try again.',
-        )
+        if (err.response?.status === 403) {
+          setIsEmailUnverified(true)
+        } else {
+          setServerError(
+            problem?.detail ?? 'Invalid email or password. Please try again.',
+          )
+        }
       } else {
         setServerError('An unexpected error occurred. Please try again.')
       }
@@ -105,6 +112,15 @@ export function LoginPage() {
           onChange={handleChange('password')}
           error={fieldErrors.password}
         />
+
+        {isEmailUnverified && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+            <p className="font-semibold mb-0.5">Email not verified</p>
+            <p className="text-amber-400/80">
+              Please check your inbox and click the verification link before signing in.
+            </p>
+          </div>
+        )}
 
         {serverError && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">

@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '@/context/AuthContext'
 import { AuthLayout } from '@/components/AuthLayout'
@@ -50,7 +50,6 @@ function validate(values: FormState): FieldErrors {
 
 export function RegisterPage() {
   const { register } = useAuth()
-  const navigate = useNavigate()
 
   const [values, setValues] = useState<FormState>({
     fullName: '',
@@ -61,6 +60,7 @@ export function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   const handleChange =
     (field: keyof FormState) =>
@@ -85,10 +85,7 @@ export function RegisterPage() {
 
     try {
       await register(values.fullName, values.email, values.password)
-      navigate('/login', {
-        state: { registered: true, email: values.email },
-        replace: true,
-      })
+      setRegistered(true)
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const problem = err.response?.data as ProblemDetail | undefined
@@ -101,6 +98,46 @@ export function RegisterPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (registered) {
+    return (
+      <AuthLayout>
+        <div className="flex flex-col items-center text-center py-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-mint/10 mb-6">
+            <svg
+              className="h-8 w-8 text-mint"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Check your email</h1>
+          <p className="text-sm text-white/50 mb-2">
+            Your account has been created successfully.
+          </p>
+          <p className="text-sm text-white/50 mb-8">
+            We sent a verification link to{' '}
+            <span className="font-semibold text-white/80">{values.email}</span>.
+            Please verify your email before logging in.
+          </p>
+          <Link
+            to="/login"
+            className="w-full rounded-xl bg-mint px-4 py-3.5 text-center text-sm font-bold tracking-wide text-ink transition-all duration-200 hover:bg-mint-dark active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 focus:ring-offset-ink-light"
+          >
+            Back to Login
+          </Link>
+        </div>
+      </AuthLayout>
+    )
   }
 
   return (
