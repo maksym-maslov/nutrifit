@@ -1,0 +1,9 @@
+services:
+  main-api:
+    image: ${IMAGE_REGISTRY}/nutrifit-main-api:${IMAGE_TAG}
+
+  ml-api:
+    image: ${IMAGE_REGISTRY}/nutrifit-ml-api:${IMAGE_TAG}
+
+  frontend:
+    image: ${IMAGE_REGISTRY}/nutrifit-frontend:${IMAGE_TAG}
