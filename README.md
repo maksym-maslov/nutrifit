@@ -150,3 +150,62 @@ When running individual services locally (without `docker compose`):
 | `frontend` | `npm run dev` at `http://localhost:5173`; set `CORS_ALLOWED_ORIGINS=http://localhost:5173` and `APP_COOKIE_SECURE=false` in `.env` |
 
 See `.env.example` for the full list of environment variables.
+
+## CI/CD
+
+GitHub Actions runs automated build, test, and deploy pipelines defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+
+### What runs when
+
+| Trigger | Workflow | Jobs |
+|---------|----------|------|
+| Pull request to `main` | CI | `main-api` tests, `frontend` build, `ml-api` smoke check |
+| Push to `main` | CI | Same as above |
+| CI succeeds on `main` push | Deploy | Build and push Docker images to GHCR, then deploy to VPS |
+
+Images are tagged with the git commit SHA and `latest`:
+
+- `ghcr.io/<owner>/nutrifit-frontend:<sha>`
+- `ghcr.io/<owner>/nutrifit-main-api:<sha>`
+- `ghcr.io/<owner>/nutrifit-ml-api:<sha>`
+
+Production deploys use [`docker-compose.prod.yml`](docker-compose.prod.yml) to pull pre-built images instead of building on the server.
+
+### GitHub secrets
+
+Configure these under **Settings → Secrets and variables → Actions**:
+
+| Secret | Purpose |
+|--------|---------|
+| `DEPLOY_HOST` | VPS IP or hostname |
+| `DEPLOY_USER` | SSH user (e.g. `deploy`) |
+| `DEPLOY_SSH_KEY` | Private SSH key for the deploy user |
+| `DEPLOY_PATH` | Absolute path to the repo on the VPS (e.g. `/opt/nutrifit`) |
+
+Production runtime secrets (database password, JWT keys, TLS certificates) stay on the VPS — they are not injected through GitHub Actions.
+
+### VPS bootstrap (one-time)
+
+Before the first automated deploy:
+
+1. Install Docker Engine and the Compose plugin.
+2. Clone this repository to `DEPLOY_PATH`.
+3. Create a production `.env` from [`.env.example`](.env.example) with real credentials.
+4. Place TLS certificates in `certs/tls/` and JWT keys in `certs/jwt/`.
+5. Open ports 80 and 443; set `CORS_ALLOWED_ORIGINS` to your production domain.
+6. Add the deploy user's public SSH key to the VPS.
+7. Run `docker compose up -d` once manually to create the `postgres_data` volume.
+8. Configure GHCR pull access on the VPS (`docker login ghcr.io` with a PAT, or set packages to public).
+
+### Rollback
+
+On the VPS, redeploy a previous commit's images:
+
+```bash
+cd /opt/nutrifit
+export IMAGE_REGISTRY=ghcr.io/<owner>
+export IMAGE_TAG=<previous-commit-sha>
+./scripts/deploy-remote.sh
+```
+
+Check workflow status in the GitHub **Actions** tab.
