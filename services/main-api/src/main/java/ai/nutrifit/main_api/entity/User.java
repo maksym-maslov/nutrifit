@@ -62,6 +62,9 @@ public class User implements UserDetails {
     @Column(name = "activity_level", length = 30)
     private ActivityLevel activityLevel;
 
+    @Column(name = "is_email_verified", nullable = false)
+    private Boolean isEmailVerified = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -204,5 +207,13 @@ public class User implements UserDetails {
 
     public void setActivityLevel(ActivityLevel activityLevel) {
         this.activityLevel = activityLevel;
+    }
+
+    public Boolean getIsEmailVerified() {
+        return isEmailVerified;
+    }
+
+    public void setIsEmailVerified(Boolean isEmailVerified) {
+        this.isEmailVerified = isEmailVerified;
     }
 }
