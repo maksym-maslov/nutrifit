@@ -39,6 +39,7 @@ out/
 .env
 **/src/main/resources/certs/
 *.pem
+!services/main-api/src/test/resources/certs/*.pem
 
 ### FastAPI ###
 .venv/
