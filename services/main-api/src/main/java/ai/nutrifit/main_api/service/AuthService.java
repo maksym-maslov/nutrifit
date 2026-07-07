@@ -106,6 +106,13 @@ public class AuthService {
     }
 
     @Transactional
+    public void logout(String refreshToken) {
+        if (refreshToken != null) {
+            refreshTokenRepository.deleteByToken(refreshToken);
+        }
+    }
+
+    @Transactional
     public TokenResponse refresh(String rawRefreshToken) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(rawRefreshToken)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
@@ -119,12 +126,22 @@ public class AuthService {
         return new TokenResponse(accessToken);
     }
 
+    public ResponseCookie buildLogoutCookie() {
+        return ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Strict")
+                .path("/api/v1/auth")
+                .maxAge(0)
+                .build();
+    }
+
     private ResponseCookie buildRefreshCookie(String token) {
         return ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite("Strict")
-                .path("/api/v1/auth/refresh")
+                .path("/api/v1/auth")
                 .maxAge(REFRESH_TOKEN_VALIDITY_DAYS * 24 * 60 * 60)
                 .build();
     }
