@@ -37,7 +37,7 @@ interface AuthContextValue {
   isOnboarded: boolean
   login: (email: string, password: string) => Promise<void>
   register: (fullName: string, email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   refreshProfile: () => Promise<UserProfileSummary | null>
   setProfileFromSummary: (summary: UserProfileSummary) => void
 }
@@ -139,10 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const logout = useCallback(() => {
-    setAccessToken(null)
-    setUser(null)
-    navigate('/login')
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.post('/auth/logout', null, { withCredentials: true })
+    } catch {
+      // Server unreachable — still clear local session below
+    } finally {
+      setAccessToken(null)
+      setUser(null)
+      navigate('/login')
+    }
   }, [navigate])
 
   return (
