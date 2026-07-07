@@ -7,6 +7,7 @@ import ai.nutrifit.main_api.dto.TokenResponse;
 import ai.nutrifit.main_api.security.AuthenticationFacade;
 import ai.nutrifit.main_api.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,6 +38,15 @@ public class AuthController {
     public ResponseEntity<TokenResponse> refresh(
             @CookieValue(name = "refreshToken") String refreshToken) {
         return ResponseEntity.ok(authService.refresh(refreshToken));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
+        authService.logout(refreshToken);
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, authService.buildLogoutCookie().toString())
+                .build();
     }
 
     @PostMapping("/change-password")

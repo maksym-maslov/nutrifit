@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -94,6 +95,20 @@ class AuthServiceTest {
         // delete-old MUST come before save-new so there is never a window with two active sessions
         order.verify(refreshTokenRepository).deleteByUser(user);
         order.verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    void logoutWithTokenCallsDeleteByToken() {
+        authService.logout("abc");
+
+        verify(refreshTokenRepository).deleteByToken("abc");
+    }
+
+    @Test
+    void logoutWithNullTokenSkipsDeletion() {
+        authService.logout(null);
+
+        verify(refreshTokenRepository, never()).deleteByToken(any());
     }
 
     @Test
