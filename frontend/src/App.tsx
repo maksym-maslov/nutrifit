@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { ProfilePage } from '@/pages/ProfilePage'
@@ -106,6 +107,8 @@ export function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route path="/verify" element={<VerifyEmailPage />} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/login" replace />} />
