@@ -4,7 +4,7 @@ Athletic nutrition and fitness tracking application.
 
 | Service | Stack | Role |
 |---------|-------|------|
-| `frontend` | React + Vite + nginx | SPA, HTTPS termination, API proxy |
+| `frontend` | React + Vite + nginx | SPA, HTTPS termination, API proxy, edge rate limiting |
 | `main-api` | Spring Boot | Auth, user data, business logic |
 | `ml-api` | FastAPI | ML-powered food recommendations |
 | `postgres` | PostgreSQL 16 | Primary database |
@@ -42,6 +42,36 @@ Athletic nutrition and fitness tracking application.
    ```
 
    Open [https://localhost](https://localhost). Accept the browser warning for the self-signed TLS cert.
+
+## Rate limiting
+
+The frontend nginx proxy applies IP-based rate limits (`limit_req_zone`) before traffic reaches `main-api`. Limits are keyed on client IP (`$binary_remote_addr`); authenticated routes share a bucket per IP, not per user.
+
+| Path | Rate | Burst |
+|------|------|-------|
+| `POST /api/v1/auth/login` | 5/min | 3 |
+| `POST /api/v1/auth/register` | 3/hour | 1 |
+| `POST /api/v1/auth/refresh` | 20/min | 5 |
+| `POST /api/v1/auth/change-password` | 5/min | 2 |
+| `GET /api/v1/foods/search` | 60/min | 10 |
+| `GET /api/v1/recommendations` | 15/min | 5 |
+
+Exceeded limits return HTTP 429. All other `/api/` routes are not rate-limited at the nginx edge. Configuration lives in [frontend/nginx.conf](frontend/nginx.conf).
+
+To verify after starting the stack:
+
+```bash
+docker compose exec frontend nginx -t
+
+for i in $(seq 1 10); do
+  curl -sk -o /dev/null -w "%{http_code}\n" \
+    -X POST https://localhost/api/v1/auth/login \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"test@example.com","password":"wrong"}'
+done
+```
+
+Expect 401 responses initially, then 429 once the login zone is exhausted.
 
 ## Secrets management
 
