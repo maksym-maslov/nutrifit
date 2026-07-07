@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -54,5 +56,11 @@ public class AuthController {
         Long userId = authenticationFacade.getCurrentUserId();
         authService.changePassword(userId, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/verify")
+    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
+        authService.verifyEmail(token);
+        return ResponseEntity.ok(Map.of("message", "Email verified successfully."));
     }
 }

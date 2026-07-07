@@ -6,8 +6,11 @@ import ai.nutrifit.main_api.dto.RegisterRequest;
 import ai.nutrifit.main_api.dto.TokenResponse;
 import ai.nutrifit.main_api.entity.RefreshToken;
 import ai.nutrifit.main_api.entity.User;
+import ai.nutrifit.main_api.entity.VerificationToken;
+import ai.nutrifit.main_api.exception.EmailNotVerifiedException;
 import ai.nutrifit.main_api.repository.RefreshTokenRepository;
 import ai.nutrifit.main_api.repository.UserRepository;
+import ai.nutrifit.main_api.repository.VerificationTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -22,31 +25,39 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class AuthService {
     private static final long REFRESH_TOKEN_VALIDITY_DAYS = 7;
+    private static final long VERIFICATION_TOKEN_VALIDITY_HOURS = 24;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final VerificationTokenRepository verificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
+    private final EmailService emailService;
     private final boolean cookieSecure;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
+            VerificationTokenRepository verificationTokenRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             TokenService tokenService,
+            EmailService emailService,
             @Value("${app.cookie.secure}") boolean cookieSecure
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.verificationTokenRepository = verificationTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.tokenService = tokenService;
+        this.emailService = emailService;
         this.cookieSecure = cookieSecure;
     }
 
@@ -63,6 +74,31 @@ public class AuthService {
         user.setRole("ROLE_USER");
 
         userRepository.save(user);
+
+        String rawToken = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken();
+        verificationToken.setToken(rawToken);
+        verificationToken.setUser(user);
+        verificationToken.setExpiryDate(LocalDateTime.now().plusHours(VERIFICATION_TOKEN_VALIDITY_HOURS));
+        verificationTokenRepository.save(verificationToken);
+
+        emailService.sendVerificationEmail(user.getEmail(), rawToken);
+    }
+
+    @Transactional
+    public void verifyEmail(String rawToken) {
+        VerificationToken verificationToken = verificationTokenRepository.findByToken(rawToken)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid verification token"));
+
+        if (verificationToken.isExpired()) {
+            verificationTokenRepository.delete(verificationToken);
+            throw new ResponseStatusException(HttpStatus.GONE, "Verification link has expired. Please register again.");
+        }
+
+        User user = verificationToken.getUser();
+        user.setIsEmailVerified(true);
+        userRepository.save(user);
+        verificationTokenRepository.delete(verificationToken);
     }
 
     @Transactional
@@ -86,6 +122,10 @@ public class AuthService {
         );
 
         User user = (User) authentication.getPrincipal();
+
+        if (!Boolean.TRUE.equals(user.getIsEmailVerified())) {
+            throw new EmailNotVerifiedException();
+        }
 
         refreshTokenRepository.deleteByUser(user);
 
