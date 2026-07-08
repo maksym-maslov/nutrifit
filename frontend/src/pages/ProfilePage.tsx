@@ -6,6 +6,7 @@ import {
   deleteAccount,
   fetchProfile,
   updateAccount,
+  updateEmail,
   updateProfile,
 } from '@/api/profileApi'
 import { FormField } from '@/components/FormField'
@@ -47,6 +48,12 @@ interface PasswordFieldErrors {
   newPassword?: string
   confirmPassword?: string
 }
+
+interface EmailFieldErrors {
+  newEmail?: string
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
@@ -112,6 +119,12 @@ export function ProfilePage() {
   const [passwordErrors, setPasswordErrors] = useState<PasswordFieldErrors>({})
   const [passwordServerError, setPasswordServerError] = useState<string | null>(null)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
+
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailErrors, setEmailErrors] = useState<EmailFieldErrors>({})
+  const [emailServerError, setEmailServerError] = useState<string | null>(null)
+  const [isSavingEmail, setIsSavingEmail] = useState(false)
 
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
@@ -281,6 +294,49 @@ export function ProfilePage() {
       if (passwordServerError) setPasswordServerError(null)
     }
 
+  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const errors: EmailFieldErrors = {}
+    const trimmedEmail = newEmail.trim()
+
+    if (!trimmedEmail) {
+      errors.newEmail = 'Email is required.'
+    } else if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      errors.newEmail = 'Enter a valid email address.'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setEmailErrors(errors)
+      return
+    }
+
+    setIsSavingEmail(true)
+    setEmailErrors({})
+    setEmailServerError(null)
+
+    try {
+      await updateEmail({ newEmail: trimmedEmail })
+      setToastMessage('Email updated. Please check your inbox to verify.')
+      clearSession()
+      setTimeout(() => navigate('/login'), 1500)
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        setEmailErrors({ newEmail: getErrorMessage(err, 'Email already in use.') })
+      } else {
+        setEmailServerError(getErrorMessage(err, 'Failed to update email.'))
+      }
+    } finally {
+      setIsSavingEmail(false)
+    }
+  }
+
+  const handleCancelEmailEdit = () => {
+    setShowEmailForm(false)
+    setNewEmail('')
+    setEmailErrors({})
+    setEmailServerError(null)
+  }
+
   const handleConfirmDeleteAccount = async () => {
     setIsDeletingAccount(true)
     try {
@@ -361,14 +417,6 @@ export function ProfilePage() {
               }}
               error={accountErrors.fullName}
             />
-            <FormField
-              id="email"
-              label="Email"
-              type="email"
-              value={profile?.email ?? ''}
-              readOnly
-              className="opacity-60 cursor-not-allowed"
-            />
             <button
               type="submit"
               disabled={isSavingAccount}
@@ -436,6 +484,81 @@ export function ProfilePage() {
                 >
                   {isSavingPassword ? 'Updating…' : 'Update password'}
                 </button>
+              </form>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-ink-border bg-ink-light/30 p-5">
+          <h2 className="text-lg font-semibold text-white">Email & Security</h2>
+          <p className="mt-1 text-sm text-white/50">Manage your login email address</p>
+
+          <div className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-white/50">Current email</p>
+                <p className="mt-1 text-sm font-medium text-white">{profile?.email ?? '—'}</p>
+              </div>
+              {!showEmailForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(true)}
+                  className="text-sm font-medium text-mint hover:text-mint-dark transition-colors"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+
+            {showEmailForm && (
+              <form onSubmit={handleEmailSubmit} noValidate className="flex flex-col gap-4">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  Changing your email will log you out immediately. You will need to verify your
+                  new email address before logging back in.
+                </div>
+                <FormField
+                  id="newEmail"
+                  label="New email"
+                  type="email"
+                  autoComplete="email"
+                  value={newEmail}
+                  onChange={(e) => {
+                    setNewEmail(e.target.value)
+                    setEmailErrors({})
+                    if (emailServerError) setEmailServerError(null)
+                  }}
+                  error={emailErrors.newEmail}
+                />
+                {emailServerError && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {emailServerError}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSavingEmail}
+                    className={[
+                      'rounded-xl px-5 py-3 text-sm font-bold tracking-wide transition-all duration-200',
+                      'bg-mint text-ink hover:bg-mint-dark active:scale-[0.98]',
+                      'disabled:cursor-not-allowed disabled:opacity-60',
+                    ].join(' ')}
+                  >
+                    {isSavingEmail ? 'Updating…' : 'Update email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEmailEdit}
+                    disabled={isSavingEmail}
+                    className={[
+                      'rounded-xl border border-ink-border px-5 py-3 text-sm font-semibold text-white/70',
+                      'transition-all duration-200 hover:border-mint/40 hover:text-white',
+                      'disabled:cursor-not-allowed disabled:opacity-60',
+                    ].join(' ')}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </form>
             )}
           </div>

@@ -75,6 +75,10 @@ export interface UpdateAccountRequest {
   fullName: string
 }
 
+export interface UpdateEmailRequest {
+  newEmail: string
+}
+
 export interface ChangePasswordRequest {
   currentPassword: string
   newPassword: string
