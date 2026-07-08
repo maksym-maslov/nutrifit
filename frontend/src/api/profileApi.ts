@@ -45,3 +45,7 @@ export async function updateAccount(payload: UpdateAccountRequest): Promise<User
 export async function changePassword(payload: ChangePasswordRequest): Promise<void> {
   await apiClient.post('/auth/change-password', payload)
 }
+
+export async function deleteAccount(): Promise<void> {
+  await apiClient.delete('/profiles/me', { withCredentials: true })
+}

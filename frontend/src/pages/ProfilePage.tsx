@@ -1,8 +1,9 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import axios from 'axios'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   changePassword,
+  deleteAccount,
   fetchProfile,
   updateAccount,
   updateProfile,
@@ -23,6 +24,7 @@ import {
   type PlanFieldErrors,
 } from '@/components/profile/ProfilePlanFields'
 import { Spinner } from '@/components/ui/Spinner'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Toast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import type { ProblemDetail } from '@/types/auth'
@@ -78,7 +80,8 @@ function MacroGoalsDisplay({ profile }: { profile: UserProfileSummary }) {
 }
 
 export function ProfilePage() {
-  const { refreshProfile, logout, setProfileFromSummary } = useAuth()
+  const navigate = useNavigate()
+  const { refreshProfile, logout, clearSession, setProfileFromSummary } = useAuth()
 
   const [profile, setProfile] = useState<UserProfileSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -111,6 +114,9 @@ export function ProfilePage() {
   const [isSavingPassword, setIsSavingPassword] = useState(false)
 
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -275,6 +281,20 @@ export function ProfilePage() {
       if (passwordServerError) setPasswordServerError(null)
     }
 
+  const handleConfirmDeleteAccount = async () => {
+    setIsDeletingAccount(true)
+    try {
+      await deleteAccount()
+      clearSession()
+      navigate('/register')
+    } catch (err) {
+      setToastMessage(getErrorMessage(err, 'Failed to delete account. Please try again.'))
+    } finally {
+      setIsDeletingAccount(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <AppShell>
@@ -298,6 +318,18 @@ export function ProfilePage() {
   return (
     <AppShell>
       <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+
+      {showDeleteDialog && (
+        <ConfirmDialog
+          isOpen
+          title="Delete account?"
+          message="Are you absolutely sure? This will permanently delete all your meals, workouts, and profile data. This action cannot be undone."
+          confirmLabel="Delete account"
+          isConfirming={isDeletingAccount}
+          onConfirm={handleConfirmDeleteAccount}
+          onCancel={() => setShowDeleteDialog(false)}
+        />
+      )}
 
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
@@ -483,6 +515,25 @@ export function ProfilePage() {
             </div>
           </section>
         )}
+
+        <section className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+          <h2 className="text-lg font-semibold text-red-300">Danger zone</h2>
+          <p className="mt-1 text-sm text-white/50">
+            Permanently delete your account and all associated data.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isDeletingAccount}
+            className={[
+              'mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-300',
+              'transition-all duration-200 hover:bg-red-500/20 active:scale-[0.98]',
+              'disabled:cursor-not-allowed disabled:opacity-60',
+            ].join(' ')}
+          >
+            Delete account
+          </button>
+        </section>
       </div>
     </AppShell>
   )

@@ -4,6 +4,7 @@ import ai.nutrifit.main_api.profile.dto.OnboardingRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateAccountRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateProfileRequest;
 import ai.nutrifit.main_api.profile.dto.UserProfileSummaryDTO;
+import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.enums.ActivityLevel;
 import ai.nutrifit.main_api.user.enums.FitnessGoal;
@@ -22,9 +23,11 @@ public class ProfileService {
     private static final int MAX_AGE = 120;
 
     private final UserRepository userRepository;
+    private final AuthenticationFacade authenticationFacade;
 
-    public ProfileService(UserRepository userRepository) {
+    public ProfileService(UserRepository userRepository, AuthenticationFacade authenticationFacade) {
         this.userRepository = userRepository;
+        this.authenticationFacade = authenticationFacade;
     }
 
     @Transactional
@@ -66,6 +69,14 @@ public class ProfileService {
         user.setFullName(request.fullName().trim());
         User savedUser = userRepository.save(user);
         return UserProfileSummaryDTO.from(savedUser);
+    }
+
+    @Transactional
+    public void deleteCurrentUser() {
+        Long userId = authenticationFacade.getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        userRepository.delete(user);
     }
 
     private void applyProfileAndRecalculateGoals(

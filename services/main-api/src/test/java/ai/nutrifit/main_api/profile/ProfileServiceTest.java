@@ -3,6 +3,7 @@ package ai.nutrifit.main_api.profile;
 import ai.nutrifit.main_api.profile.dto.OnboardingRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateProfileRequest;
 import ai.nutrifit.main_api.profile.dto.UserProfileSummaryDTO;
+import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.enums.ActivityLevel;
 import ai.nutrifit.main_api.user.enums.FitnessGoal;
@@ -22,9 +23,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+
+import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -32,11 +37,14 @@ class ProfileServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private AuthenticationFacade authenticationFacade;
+
     private ProfileService profileService;
 
     @BeforeEach
     void setUp() {
-        profileService = new ProfileService(userRepository);
+        profileService = new ProfileService(userRepository, authenticationFacade);
         // save() returns whatever entity was passed in so we can assert on its fields
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -127,6 +135,31 @@ class ProfileServiceTest {
         assertThatThrownBy(() -> onboard("other", 70f, 175f, birthday, FitnessGoal.MAINTAIN, ActivityLevel.SEDENTARY))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(BAD_REQUEST));
+    }
+
+    // --- Account deletion ---
+
+    @Test
+    void deleteCurrentUser_deletesUserFromRepository() {
+        User user = new User();
+        user.setEmail("test@example.com");
+
+        when(authenticationFacade.getCurrentUserId()).thenReturn(42L);
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        profileService.deleteCurrentUser();
+
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    void deleteCurrentUser_whenUserNotFoundThrows404() {
+        when(authenticationFacade.getCurrentUserId()).thenReturn(99L);
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> profileService.deleteCurrentUser())
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(NOT_FOUND));
     }
 
     // --- Onboarding guard on updateProfile ---
