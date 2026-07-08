@@ -1,19 +1,17 @@
-import { useState, type FormEvent, type ChangeEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import { useAuth } from '@/context/AuthContext'
+import { requestPasswordReset } from '@/api/authApi'
 import { AuthLayout } from '@/components/AuthLayout'
 import { FormField } from '@/components/FormField'
 import type { ProblemDetail } from '@/types/auth'
 
 interface FormState {
   email: string
-  password: string
 }
 
 interface FieldErrors {
   email?: string
-  password?: string
 }
 
 function validate(values: FormState): FieldErrors {
@@ -23,20 +21,15 @@ function validate(values: FormState): FieldErrors {
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
     errors.email = 'Enter a valid email address.'
   }
-  if (!values.password) {
-    errors.password = 'Password is required.'
-  }
   return errors
 }
 
-export function LoginPage() {
-  const { login } = useAuth()
-
-  const [values, setValues] = useState<FormState>({ email: '', password: '' })
+export function ForgotPasswordPage() {
+  const [values, setValues] = useState<FormState>({ email: '' })
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [serverError, setServerError] = useState<string | null>(null)
-  const [isEmailUnverified, setIsEmailUnverified] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const handleChange =
     (field: keyof FormState) =>
@@ -46,7 +39,6 @@ export function LoginPage() {
         setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
       }
       if (serverError) setServerError(null)
-      if (isEmailUnverified) setIsEmailUnverified(false)
     }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -59,20 +51,16 @@ export function LoginPage() {
 
     setIsSubmitting(true)
     setServerError(null)
-    setIsEmailUnverified(false)
 
     try {
-      await login(values.email, values.password)
+      await requestPasswordReset(values.email)
+      setSubmitted(true)
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const problem = err.response?.data as ProblemDetail | undefined
-        if (err.response?.status === 403) {
-          setIsEmailUnverified(true)
-        } else {
-          setServerError(
-            problem?.detail ?? 'Invalid email or password. Please try again.',
-          )
-        }
+        setServerError(
+          problem?.detail ?? 'Something went wrong. Please try again.',
+        )
       } else {
         setServerError('An unexpected error occurred. Please try again.')
       }
@@ -81,12 +69,47 @@ export function LoginPage() {
     }
   }
 
+  if (submitted) {
+    return (
+      <AuthLayout>
+        <div className="flex flex-col items-center text-center py-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-mint/10 mb-6">
+            <svg
+              className="h-8 w-8 text-mint"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+              />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Check your inbox</h1>
+          <p className="text-sm text-white/50 mb-8">
+            If that email exists, a reset link was sent. The link expires in 15 minutes.
+          </p>
+          <Link
+            to="/login"
+            className="w-full rounded-xl bg-mint px-4 py-3.5 text-center text-sm font-bold tracking-wide text-ink transition-all duration-200 hover:bg-mint-dark active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 focus:ring-offset-ink-light"
+          >
+            Back to Login
+          </Link>
+        </div>
+      </AuthLayout>
+    )
+  }
+
   return (
     <AuthLayout>
       <div className="mb-7">
-        <h1 className="text-2xl font-bold text-white">Welcome back</h1>
+        <h1 className="text-2xl font-bold text-white">Forgot password?</h1>
         <p className="mt-1 text-sm text-white/50">
-          Sign in to your NutriFit account
+          Enter your email and we&apos;ll send you a reset link
         </p>
       </div>
 
@@ -101,35 +124,6 @@ export function LoginPage() {
           onChange={handleChange('email')}
           error={fieldErrors.email}
         />
-
-        <FormField
-          id="password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          placeholder="••••••••"
-          value={values.password}
-          onChange={handleChange('password')}
-          error={fieldErrors.password}
-        />
-
-        <div className="-mt-2 flex justify-end">
-          <Link
-            to="/forgot-password"
-            className="text-sm font-semibold text-mint hover:text-mint-dark transition-colors"
-          >
-            Forgot password?
-          </Link>
-        </div>
-
-        {isEmailUnverified && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-            <p className="font-semibold mb-0.5">Email not verified</p>
-            <p className="text-amber-400/80">
-              Please check your inbox and click the verification link before signing in.
-            </p>
-          </div>
-        )}
 
         {serverError && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -150,21 +144,21 @@ export function LoginPage() {
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">
               <Spinner />
-              Signing in…
+              Sending…
             </span>
           ) : (
-            'Sign In'
+            'Send Reset Link'
           )}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-white/40">
-        Don&apos;t have an account?{' '}
+        Remember your password?{' '}
         <Link
-          to="/register"
+          to="/login"
           className="font-semibold text-mint hover:text-mint-dark transition-colors"
         >
-          Create one
+          Sign in
         </Link>
       </p>
     </AuthLayout>
