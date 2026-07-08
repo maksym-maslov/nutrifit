@@ -4,10 +4,12 @@ import ai.nutrifit.main_api.dto.ChangePasswordRequest;
 import ai.nutrifit.main_api.dto.LoginRequest;
 import ai.nutrifit.main_api.dto.RegisterRequest;
 import ai.nutrifit.main_api.dto.TokenResponse;
+import ai.nutrifit.main_api.entity.PasswordResetToken;
 import ai.nutrifit.main_api.entity.RefreshToken;
 import ai.nutrifit.main_api.entity.User;
 import ai.nutrifit.main_api.entity.VerificationToken;
 import ai.nutrifit.main_api.exception.EmailNotVerifiedException;
+import ai.nutrifit.main_api.repository.PasswordResetTokenRepository;
 import ai.nutrifit.main_api.repository.RefreshTokenRepository;
 import ai.nutrifit.main_api.repository.UserRepository;
 import ai.nutrifit.main_api.repository.VerificationTokenRepository;
@@ -31,10 +33,12 @@ import java.util.UUID;
 public class AuthService {
     private static final long REFRESH_TOKEN_VALIDITY_DAYS = 7;
     private static final long VERIFICATION_TOKEN_VALIDITY_HOURS = 24;
+    private static final long PASSWORD_RESET_TOKEN_VALIDITY_MINUTES = 15;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final VerificationTokenRepository verificationTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
@@ -45,6 +49,7 @@ public class AuthService {
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             VerificationTokenRepository verificationTokenRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             TokenService tokenService,
@@ -54,6 +59,7 @@ public class AuthService {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.verificationTokenRepository = verificationTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.tokenService = tokenService;
@@ -99,6 +105,39 @@ public class AuthService {
         user.setIsEmailVerified(true);
         userRepository.save(user);
         verificationTokenRepository.delete(verificationToken);
+    }
+
+    @Transactional
+    public void processForgotPassword(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> {
+            passwordResetTokenRepository.deleteByUser(user);
+
+            String rawToken = UUID.randomUUID().toString();
+            PasswordResetToken resetToken = new PasswordResetToken();
+            resetToken.setToken(rawToken);
+            resetToken.setUser(user);
+            resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(PASSWORD_RESET_TOKEN_VALIDITY_MINUTES));
+            passwordResetTokenRepository.save(resetToken);
+
+            emailService.sendPasswordResetEmail(user.getEmail(), rawToken);
+        });
+    }
+
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid reset token"));
+
+        if (resetToken.isExpired()) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new ResponseStatusException(HttpStatus.GONE, "Reset link has expired. Please request a new one.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        passwordResetTokenRepository.delete(resetToken);
+        refreshTokenRepository.deleteByUser(user);
     }
 
     @Transactional
