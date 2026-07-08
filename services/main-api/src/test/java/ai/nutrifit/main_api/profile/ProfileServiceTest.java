@@ -1,5 +1,9 @@
 package ai.nutrifit.main_api.profile;
 
+import ai.nutrifit.main_api.auth.EmailService;
+import ai.nutrifit.main_api.auth.entity.VerificationToken;
+import ai.nutrifit.main_api.auth.repository.RefreshTokenRepository;
+import ai.nutrifit.main_api.auth.repository.VerificationTokenRepository;
 import ai.nutrifit.main_api.profile.dto.OnboardingRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateProfileRequest;
 import ai.nutrifit.main_api.profile.dto.UserProfileSummaryDTO;
@@ -11,6 +15,7 @@ import ai.nutrifit.main_api.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -18,11 +23,13 @@ import org.mockito.quality.Strictness;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -40,13 +47,30 @@ class ProfileServiceTest {
     @Mock
     private AuthenticationFacade authenticationFacade;
 
+    @Mock
+    private VerificationTokenRepository verificationTokenRepository;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private EmailService emailService;
+
     private ProfileService profileService;
 
     @BeforeEach
     void setUp() {
-        profileService = new ProfileService(userRepository, authenticationFacade);
+        profileService = new ProfileService(
+                userRepository,
+                authenticationFacade,
+                verificationTokenRepository,
+                refreshTokenRepository,
+                emailService
+        );
         // save() returns whatever entity was passed in so we can assert on its fields
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(verificationTokenRepository.save(any(VerificationToken.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     // --- BMR / TDEE ---
@@ -177,6 +201,70 @@ class ProfileServiceTest {
         assertThatThrownBy(() -> profileService.updateProfile(user, request))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(CONFLICT));
+    }
+
+    // --- Email update ---
+
+    @Test
+    void updateEmail_updatesUserAndSendsVerification() {
+        User user = new User();
+        user.setEmail("old@example.com");
+        user.setIsEmailVerified(true);
+
+        when(authenticationFacade.getCurrentUserId()).thenReturn(42L);
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+
+        profileService.updateEmail("new@example.com");
+
+        assertThat(user.getEmail()).isEqualTo("new@example.com");
+        assertThat(user.getIsEmailVerified()).isFalse();
+        verify(verificationTokenRepository).deleteByUser(user);
+
+        ArgumentCaptor<VerificationToken> tokenCaptor = ArgumentCaptor.forClass(VerificationToken.class);
+        verify(verificationTokenRepository).save(tokenCaptor.capture());
+        VerificationToken savedToken = tokenCaptor.getValue();
+        assertThat(savedToken.getToken()).isNotBlank();
+        assertThat(savedToken.getUser()).isEqualTo(user);
+        assertThat(savedToken.getExpiryDate()).isAfter(LocalDateTime.now());
+
+        verify(emailService).sendVerificationEmail("new@example.com", savedToken.getToken());
+        verify(refreshTokenRepository).deleteByUser(user);
+    }
+
+    @Test
+    void updateEmail_whenEmailTakenByAnotherUserThrows409() {
+        User user = new User();
+        user.setEmail("old@example.com");
+
+        when(authenticationFacade.getCurrentUserId()).thenReturn(42L);
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> profileService.updateEmail("taken@example.com"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(CONFLICT));
+
+        verify(verificationTokenRepository, never()).save(any());
+        verify(emailService, never()).sendVerificationEmail(any(), any());
+        verify(refreshTokenRepository, never()).deleteByUser(any());
+    }
+
+    @Test
+    void updateEmail_whenSameAsCurrentEmailThrows400() {
+        User user = new User();
+        user.setEmail("same@example.com");
+
+        when(authenticationFacade.getCurrentUserId()).thenReturn(42L);
+        when(userRepository.findById(42L)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> profileService.updateEmail("same@example.com"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(BAD_REQUEST));
+
+        verify(userRepository, never()).save(any());
+        verify(verificationTokenRepository, never()).save(any());
+        verify(emailService, never()).sendVerificationEmail(any(), any());
     }
 
     // --- Helpers ---

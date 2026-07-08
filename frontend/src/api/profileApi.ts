@@ -7,6 +7,7 @@ import {
   type OnboardingRequest,
   type ProfileRequest,
   type UpdateAccountRequest,
+  type UpdateEmailRequest,
   type UserProfileSummary,
   type UserProfileSummaryDto,
 } from '@/types/profile'
@@ -40,6 +41,15 @@ export async function updateAccount(payload: UpdateAccountRequest): Promise<User
     payload,
   )
   return mapProfileSummaryDto(data)
+}
+
+export async function updateEmail(payload: UpdateEmailRequest): Promise<{ message: string }> {
+  const { data } = await apiClient.patch<{ message: string }>(
+    '/profiles/me/email',
+    payload,
+    { withCredentials: true },
+  )
+  return data
 }
 
 export async function changePassword(payload: ChangePasswordRequest): Promise<void> {

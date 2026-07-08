@@ -3,6 +3,7 @@ package ai.nutrifit.main_api.profile;
 import ai.nutrifit.main_api.auth.AuthService;
 import ai.nutrifit.main_api.profile.dto.OnboardingRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateAccountRequest;
+import ai.nutrifit.main_api.profile.dto.UpdateEmailRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateProfileRequest;
 import ai.nutrifit.main_api.profile.dto.UserProfileSummaryDTO;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/profiles")
@@ -72,6 +75,16 @@ public class ProfileController {
         User user = getCurrentUser();
         UserProfileSummaryDTO response = profileService.updateAccount(user, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/me/email")
+    public ResponseEntity<Map<String, String>> updateEmail(
+            @Valid @RequestBody UpdateEmailRequest request
+    ) {
+        profileService.updateEmail(request.newEmail());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, authService.buildLogoutCookie().toString())
+                .body(Map.of("message", "Email updated successfully. Please verify your new email address."));
     }
 
     @DeleteMapping("/me")
