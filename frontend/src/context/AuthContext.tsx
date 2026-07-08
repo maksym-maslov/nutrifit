@@ -38,6 +38,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (fullName: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  clearSession: () => void
   refreshProfile: () => Promise<UserProfileSummary | null>
   setProfileFromSummary: (summary: UserProfileSummary) => void
 }
@@ -151,6 +152,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [navigate])
 
+  const clearSession = useCallback(() => {
+    setAccessToken(null)
+    setUser(null)
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -160,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        clearSession,
         refreshProfile,
         setProfileFromSummary,
       }}
