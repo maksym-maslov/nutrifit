@@ -45,18 +45,21 @@ Athletic nutrition and fitness tracking application.
 
 ## Rate limiting
 
-The frontend nginx proxy applies IP-based rate limits (`limit_req_zone`) before traffic reaches `main-api`. Limits are keyed on client IP (`$binary_remote_addr`); authenticated routes share a bucket per IP, not per user.
+Rate limiting is applied in two layers:
 
-| Path | Rate | Burst |
-|------|------|-------|
-| `POST /api/v1/auth/login` | 5/min | 3 |
-| `POST /api/v1/auth/register` | 3/hour | 1 |
-| `POST /api/v1/auth/refresh` | 20/min | 5 |
-| `POST /api/v1/auth/change-password` | 5/min | 2 |
-| `GET /api/v1/foods/search` | 60/min | 10 |
-| `GET /api/v1/recommendations` | 15/min | 5 |
+1. **nginx (edge)** — a coarse global limit of 300 requests/min per IP on all `/api/` traffic (`limit_req_zone` in [frontend/nginx.conf](frontend/nginx.conf)).
+2. **main-api (application)** — per-endpoint limits keyed on client IP (from `X-Forwarded-For` / `X-Real-IP` set by nginx):
 
-Exceeded limits return HTTP 429. All other `/api/` routes are not rate-limited at the nginx edge. Configuration lives in [frontend/nginx.conf](frontend/nginx.conf).
+| Path | Rate |
+|------|------|
+| `POST /api/v1/auth/login` | 5/min |
+| `POST /api/v1/auth/register` | 3/hour |
+| `POST /api/v1/auth/refresh` | 20/min |
+| `POST /api/v1/auth/change-password` | 5/min |
+| `GET /api/v1/foods/search` | 60/min |
+| `GET /api/v1/recommendations` | 15/min |
+
+Exceeded limits return HTTP 429. Application-level limits live in [RateLimitingService](services/main-api/src/main/java/ai/nutrifit/main_api/shared/ratelimit/RateLimitingService.java).
 
 To verify after starting the stack:
 
@@ -71,7 +74,7 @@ for i in $(seq 1 10); do
 done
 ```
 
-Expect 401 responses initially, then 429 once the login zone is exhausted.
+Expect 401 responses initially, then 429 once the login limit is exhausted.
 
 ## Secrets management
 
@@ -90,7 +93,7 @@ Docker Compose reads `${POSTGRES_*}` from `.env` at parse time and builds connec
 
 Never commit production secrets. Inject them via one of:
 
-- **Environment variables** — set `POSTGRES_PASSWORD`, `DB_PASSWORD`, `RSA_PUBLIC_KEY`, `RSA_PRIVATE_KEY`, etc. in your deployment platform
+- **Environment variables** — set `POSTGRES_PASSWORD`, `DB_PASSWORD`, `RSA_PUBLIC_KEY`, `RSA_PRIVATE_KEY`, `MAIL_*`, `APP_FRONTEND_URL`, etc. in your deployment platform
 - **Mounted secret files** — place PEM files on a read-only volume (e.g. `/run/secrets/jwt/`) and point `RSA_PUBLIC_KEY` / `RSA_PRIVATE_KEY` at `file:/run/secrets/jwt/public.pem`
 - **Secrets manager** — store values in your vault (AWS Secrets Manager, HashiCorp Vault, GitHub Actions secrets, etc.) and inject at deploy time
 
@@ -104,6 +107,20 @@ In Docker, `main-api` loads JWT keys from a mounted volume at `/run/secrets/jwt/
 - `services/main-api/src/main/resources/certs/*.pem`
 
 Test-only JWT keys under `services/main-api/src/test/resources/certs/` are safe to commit (used only by unit tests).
+
+## Email (SMTP)
+
+Registration, email verification, and password reset send links via SMTP. Configure in `.env`:
+
+| Variable | Purpose |
+|----------|---------|
+| `APP_FRONTEND_URL` | Base URL for links in emails (e.g. `https://your-domain.com/verify?token=...`) |
+| `MAIL_HOST` | SMTP server hostname |
+| `MAIL_PORT` | SMTP port (typically `587` with STARTTLS) |
+| `MAIL_USERNAME` | SMTP username |
+| `MAIL_PASSWORD` | SMTP password or app-specific token |
+
+Without valid SMTP credentials, users can register but will not receive verification or reset emails, and login requires a verified email.
 
 ## JWT key rotation
 
@@ -145,9 +162,9 @@ When running individual services locally (without `docker compose`):
 
 | Service | Required configuration |
 |---------|------------------------|
-| `main-api` | `SPRING_DATASOURCE_URL`, `DB_USERNAME`, `DB_PASSWORD`, JWT keys in `src/main/resources/certs/` (run `generate-jwt-keys.sh`) |
+| `main-api` | `SPRING_DATASOURCE_URL`, `DB_USERNAME`, `DB_PASSWORD`, JWT keys in `src/main/resources/certs/` (run `generate-jwt-keys.sh`); for auth emails: `APP_FRONTEND_URL`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` |
 | `ml-api` | `DATABASE_URL` with full connection string |
-| `frontend` | `npm run dev` at `http://localhost:5173`; set `CORS_ALLOWED_ORIGINS=http://localhost:5173` and `APP_COOKIE_SECURE=false` in `.env` |
+| `frontend` | `npm run dev` at `http://localhost:5173`; set `CORS_ALLOWED_ORIGINS=http://localhost:5173`, `APP_COOKIE_SECURE=false`, and `APP_FRONTEND_URL=http://localhost:5173` in `.env` |
 
 See `.env.example` for the full list of environment variables.
 
@@ -192,7 +209,11 @@ Before the first automated deploy:
 2. Clone this repository to `DEPLOY_PATH`.
 3. Create a production `.env` from [`.env.example`](.env.example) with real credentials.
 4. Place TLS certificates in `certs/tls/` and JWT keys in `certs/jwt/`.
-5. Open ports 80 and 443; set `CORS_ALLOWED_ORIGINS` to your production domain.
+5. Open ports 80 and 443; set production values in `.env`:
+   - `CORS_ALLOWED_ORIGINS=https://your-domain.com`
+   - `APP_COOKIE_SECURE=true`
+   - `APP_FRONTEND_URL=https://your-domain.com` (links in verification and password-reset emails)
+   - `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` (SMTP for email verification and password reset)
 6. Add the deploy user's public SSH key to the VPS.
 7. Run `docker compose up -d` once manually to create the `postgres_data` volume.
 8. Configure GHCR pull access on the VPS (`docker login ghcr.io` with a PAT, or set packages to public).
