@@ -1,8 +1,10 @@
 package ai.nutrifit.main_api.controller;
 
 import ai.nutrifit.main_api.dto.ChangePasswordRequest;
+import ai.nutrifit.main_api.dto.ForgotPasswordRequest;
 import ai.nutrifit.main_api.dto.LoginRequest;
 import ai.nutrifit.main_api.dto.RegisterRequest;
+import ai.nutrifit.main_api.dto.ResetPasswordRequest;
 import ai.nutrifit.main_api.dto.TokenResponse;
 import ai.nutrifit.main_api.security.AuthenticationFacade;
 import ai.nutrifit.main_api.service.AuthService;
@@ -62,5 +64,17 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
         authService.verifyEmail(token);
         return ResponseEntity.ok(Map.of("message", "Email verified successfully."));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.processForgotPassword(request.email());
+        return ResponseEntity.ok(Map.of("message", "If that email exists, a reset link was sent."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully."));
     }
 }

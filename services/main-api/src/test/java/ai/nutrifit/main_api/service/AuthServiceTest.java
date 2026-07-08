@@ -3,13 +3,17 @@ package ai.nutrifit.main_api.service;
 import ai.nutrifit.main_api.dto.ChangePasswordRequest;
 import ai.nutrifit.main_api.dto.LoginRequest;
 import ai.nutrifit.main_api.dto.RegisterRequest;
+import ai.nutrifit.main_api.entity.PasswordResetToken;
 import ai.nutrifit.main_api.entity.RefreshToken;
 import ai.nutrifit.main_api.entity.User;
+import ai.nutrifit.main_api.repository.PasswordResetTokenRepository;
 import ai.nutrifit.main_api.repository.RefreshTokenRepository;
 import ai.nutrifit.main_api.repository.UserRepository;
+import ai.nutrifit.main_api.repository.VerificationTokenRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,24 +33,35 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.GONE;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private VerificationTokenRepository verificationTokenRepository;
+    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private TokenService tokenService;
+    @Mock private EmailService emailService;
 
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        // cookieSecure=false avoids needing HTTPS in tests
         authService = new AuthService(
-                userRepository, refreshTokenRepository, passwordEncoder,
-                authenticationManager, tokenService, false);
+                userRepository,
+                refreshTokenRepository,
+                verificationTokenRepository,
+                passwordResetTokenRepository,
+                passwordEncoder,
+                authenticationManager,
+                tokenService,
+                emailService,
+                false);
     }
 
     @Test
@@ -58,7 +73,6 @@ class AuthServiceTest {
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(UNAUTHORIZED));
 
-        // The delete MUST happen even though an exception is thrown
         verify(refreshTokenRepository).delete(expiredToken);
     }
 
@@ -81,6 +95,7 @@ class AuthServiceTest {
         User user = new User();
         user.setRole("ROLE_USER");
         user.setEmail("user@test.com");
+        user.setIsEmailVerified(true);
 
         when(authenticationManager.authenticate(any()))
                 .thenReturn(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
@@ -92,7 +107,6 @@ class AuthServiceTest {
 
         authService.login(new LoginRequest("user@test.com", "password"));
 
-        // delete-old MUST come before save-new so there is never a window with two active sessions
         order.verify(refreshTokenRepository).deleteByUser(user);
         order.verify(refreshTokenRepository).save(any(RefreshToken.class));
     }
@@ -121,12 +135,89 @@ class AuthServiceTest {
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(CONFLICT));
     }
 
-    // --- Helpers ---
+    @Test
+    void processForgotPasswordWithExistingUserCreatesTokenAndSendsEmail() {
+        User user = new User();
+        user.setEmail("user@test.com");
+        when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
+        when(passwordResetTokenRepository.save(any(PasswordResetToken.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        authService.processForgotPassword("user@test.com");
+
+        verify(passwordResetTokenRepository).deleteByUser(user);
+
+        ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+        verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+        PasswordResetToken savedToken = tokenCaptor.getValue();
+        assertThat(savedToken.getToken()).isNotBlank();
+        assertThat(savedToken.getUser()).isEqualTo(user);
+        assertThat(savedToken.getExpiryDate()).isAfter(LocalDateTime.now());
+
+        verify(emailService).sendPasswordResetEmail("user@test.com", savedToken.getToken());
+    }
+
+    @Test
+    void processForgotPasswordWithUnknownEmailDoesNothing() {
+        when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+
+        authService.processForgotPassword("unknown@test.com");
+
+        verify(passwordResetTokenRepository, never()).deleteByUser(any());
+        verify(passwordResetTokenRepository, never()).save(any());
+        verify(emailService, never()).sendPasswordResetEmail(any(), any());
+    }
+
+    @Test
+    void resetPasswordWithValidTokenUpdatesPasswordAndRevokesSessions() {
+        User user = new User();
+        user.setPassword("old-hash");
+
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setToken("valid-token");
+        resetToken.setUser(user);
+        resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(10));
+
+        when(passwordResetTokenRepository.findByToken("valid-token")).thenReturn(Optional.of(resetToken));
+        when(passwordEncoder.encode("new-password")).thenReturn("new-hash");
+        when(userRepository.save(user)).thenReturn(user);
+
+        authService.resetPassword("valid-token", "new-password");
+
+        assertThat(user.getPassword()).isEqualTo("new-hash");
+        verify(passwordResetTokenRepository).delete(resetToken);
+        verify(refreshTokenRepository).deleteByUser(user);
+    }
+
+    @Test
+    void resetPasswordWithInvalidTokenThrows404() {
+        when(passwordResetTokenRepository.findByToken("bad-token")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.resetPassword("bad-token", "new-password"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(NOT_FOUND));
+    }
+
+    @Test
+    void resetPasswordWithExpiredTokenDeletesTokenAndThrows410() {
+        PasswordResetToken expiredToken = new PasswordResetToken();
+        expiredToken.setToken("expired-token");
+        expiredToken.setExpiryDate(LocalDateTime.now().minusMinutes(1));
+        expiredToken.setUser(new User());
+
+        when(passwordResetTokenRepository.findByToken("expired-token")).thenReturn(Optional.of(expiredToken));
+
+        assertThatThrownBy(() -> authService.resetPassword("expired-token", "new-password"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(GONE));
+
+        verify(passwordResetTokenRepository).delete(expiredToken);
+    }
 
     private RefreshToken expiredToken() {
         RefreshToken token = new RefreshToken();
         token.setToken("expired-token");
-        token.setExpiryDate(LocalDateTime.now().minusDays(1)); // already in the past
+        token.setExpiryDate(LocalDateTime.now().minusDays(1));
         token.setUser(new User());
         return token;
     }

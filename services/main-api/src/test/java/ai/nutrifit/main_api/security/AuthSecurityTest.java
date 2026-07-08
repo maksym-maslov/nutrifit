@@ -120,6 +120,26 @@ class AuthSecurityTest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")));
     }
 
+    @Test
+    void forgotPasswordEndpointIsAccessibleWithoutToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@test.com"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void resetPasswordEndpointIsAccessibleWithoutToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token":"reset-token","newPassword":"password123"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
     // --- Helpers ---
 
     private DailySummaryResponse emptySummary() {
