@@ -29,6 +29,19 @@ export interface RegisterRequest {
   fullName: string
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  newPassword: string
+}
+
+export interface MessageResponse {
+  message: string
+}
+
 /** Decoded JWT payload claims issued by the backend TokenService */
 export interface JwtClaims {
   iss: string
