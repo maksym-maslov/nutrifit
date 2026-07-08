@@ -2,10 +2,12 @@ package ai.nutrifit.main_api.auth;
 
 import ai.nutrifit.main_api.auth.dto.TokenResponse;
 import ai.nutrifit.main_api.shared.config.SecurityConfig;
+import ai.nutrifit.main_api.shared.ratelimit.RateLimitInterceptor;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
 import ai.nutrifit.main_api.summary.DailySummaryController;
 import ai.nutrifit.main_api.summary.DailySummaryService;
 import ai.nutrifit.main_api.summary.dto.DailySummaryResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -21,9 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,6 +46,12 @@ class AuthSecurityTest {
     @MockitoBean private DailySummaryService dailySummaryService;
     @MockitoBean private AuthenticationFacade authenticationFacade;
     @MockitoBean private UserDetailsService userDetailsService;
+    @MockitoBean private RateLimitInterceptor rateLimitInterceptor;
+
+    @BeforeEach
+    void allowRequestsThroughRateLimiter() throws Exception {
+        when(rateLimitInterceptor.preHandle(any(), any(), any())).thenReturn(true);
+    }
 
     @Test
     void protectedEndpointWithoutTokenReturns401() throws Exception {
