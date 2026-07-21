@@ -4,6 +4,7 @@ import ai.nutrifit.main_api.meal.dto.MealItemResponse;
 import ai.nutrifit.main_api.meal.entity.Meal;
 import ai.nutrifit.main_api.meal.repository.MealRepository;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.summary.dto.DailySummaryResponse;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.repository.UserRepository;
@@ -49,8 +50,9 @@ public class DailySummaryService {
         float baseCarbs   = user.getGoalCarbsG()    != null ? user.getGoalCarbsG()    : 250.0f;
         float baseFat     = user.getGoalFatG()      != null ? user.getGoalFatG()      : 65.0f;
 
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end   = date.plusDays(1).atStartOfDay();
+        UserTimezone.UtcDayWindow window = UserTimezone.dayWindowUtc(user, date);
+        LocalDateTime start = window.startUtc();
+        LocalDateTime end   = window.endUtc();
 
         List<Meal> meals = mealRepository.findByUser_IdAndLoggedAtBetween(userId, start, end);
         int totalCaloriesConsumed   = 0;
