@@ -3,7 +3,9 @@ package ai.nutrifit.main_api.meal.entity;
 import ai.nutrifit.main_api.user.entity.User;
 import jakarta.persistence.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +34,7 @@ public class Meal {
 
     @PrePersist
     private void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
     }
 
     public void addItem(MealItem item) {

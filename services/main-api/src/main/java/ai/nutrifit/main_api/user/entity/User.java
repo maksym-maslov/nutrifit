@@ -7,8 +7,10 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
 
@@ -65,6 +67,9 @@ public class User implements UserDetails {
     @Column(name = "is_email_verified", nullable = false)
     private Boolean isEmailVerified = false;
 
+    @Column(length = 50)
+    private String timezone = "Europe/Kyiv";
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -73,13 +78,14 @@ public class User implements UserDetails {
 
     @PrePersist
     private void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime nowUtc = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
+        createdAt = nowUtc;
+        updatedAt = nowUtc;
     }
 
     @PreUpdate
     private void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
     }
 
     @Override
@@ -215,5 +221,13 @@ public class User implements UserDetails {
 
     public void setIsEmailVerified(Boolean isEmailVerified) {
         this.isEmailVerified = isEmailVerified;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 }
