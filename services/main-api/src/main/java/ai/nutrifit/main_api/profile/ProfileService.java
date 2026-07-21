@@ -9,6 +9,7 @@ import ai.nutrifit.main_api.profile.dto.UpdateAccountRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateProfileRequest;
 import ai.nutrifit.main_api.profile.dto.UserProfileSummaryDTO;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.enums.ActivityLevel;
 import ai.nutrifit.main_api.user.enums.FitnessGoal;
@@ -58,7 +59,8 @@ public class ProfileService {
                 request.heightCm(),
                 request.weightKg(),
                 request.fitnessGoal(),
-                request.activityLevel()
+                request.activityLevel(),
+                request.timezone()
         );
         User savedUser = userRepository.save(user);
         return UserProfileSummaryDTO.from(savedUser);
@@ -77,7 +79,8 @@ public class ProfileService {
                 request.heightCm(),
                 request.weightKg(),
                 request.fitnessGoal(),
-                request.activityLevel()
+                request.activityLevel(),
+                request.timezone()
         );
         User savedUser = userRepository.save(user);
         return UserProfileSummaryDTO.from(savedUser);
@@ -139,7 +142,8 @@ public class ProfileService {
             float heightCm,
             float weightKg,
             FitnessGoal fitnessGoal,
-            ActivityLevel activityLevel
+            ActivityLevel activityLevel,
+            String timezone
     ) {
         int age = calculateAge(birthday);
         if (age < MIN_AGE || age > MAX_AGE) {
@@ -175,6 +179,9 @@ public class ProfileService {
         user.setGoalProteinG(goalProteinG);
         user.setGoalCarbsG(goalCarbsG);
         user.setGoalFatG(goalFatG);
+        if (timezone != null && !timezone.isBlank()) {
+            user.setTimezone(UserTimezone.normalizeTimezone(timezone));
+        }
     }
 
     private boolean isOnboarded(User user) {
