@@ -3,6 +3,7 @@ package ai.nutrifit.main_api.workout;
 import ai.nutrifit.main_api.catalog.entity.ExerciseDictionary;
 import ai.nutrifit.main_api.catalog.repository.ExerciseDictionaryRepository;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.repository.UserRepository;
 import ai.nutrifit.main_api.workout.dto.LogWorkoutRequest;
@@ -53,7 +54,7 @@ public class WorkoutService {
         log.setExercise(exercise);
         log.setDurationMinutes(request.durationMinutes());
         log.setCaloriesBurned(computeCaloriesBurned(user, exercise, request.durationMinutes()));
-        log.setLoggedAt(request.loggedAt());
+        log.setLoggedAt(UserTimezone.localWallTimeToUtc(request.loggedAt(), user));
 
         return WorkoutLogResponse.from(workoutLogRepository.save(log));
     }
@@ -81,10 +82,11 @@ public class WorkoutService {
     @Transactional(readOnly = true)
     public List<WorkoutLogResponse> getWorkoutsByDate(LocalDate date) {
         Long userId = authenticationFacade.getCurrentUserId();
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        UserTimezone.UtcDayWindow window = UserTimezone.dayWindowUtc(user, date);
 
-        return workoutLogRepository.findByUser_IdAndLoggedAtBetween(userId, start, end).stream()
+        return workoutLogRepository.findByUser_IdAndLoggedAtBetween(userId, window.startUtc(), window.endUtc()).stream()
                 .map(WorkoutLogResponse::from)
                 .toList();
     }

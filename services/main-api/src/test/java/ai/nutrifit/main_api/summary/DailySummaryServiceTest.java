@@ -2,6 +2,7 @@ package ai.nutrifit.main_api.summary;
 
 import ai.nutrifit.main_api.meal.repository.MealRepository;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.summary.dto.DailySummaryResponse;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.repository.UserRepository;
@@ -10,6 +11,7 @@ import ai.nutrifit.main_api.workout.repository.WorkoutLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -24,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -114,6 +117,22 @@ class DailySummaryServiceTest {
         assertThat(result.adjustedProtein()).isEqualTo(result.baseProtein());
         assertThat(result.adjustedCarbs()).isEqualTo(result.baseCarbs());
         assertThat(result.adjustedFat()).isEqualTo(result.baseFat());
+    }
+
+    @Test
+    void queriesMealsUsingUserTimezoneDayWindow() {
+        User user = onboardedUser(2000, 150f, 250f, 65f);
+        user.setTimezone("Europe/Kyiv");
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        dailySummaryService.getDailySummary(TEST_DATE);
+
+        UserTimezone.UtcDayWindow expected = UserTimezone.dayWindowUtc(user, TEST_DATE);
+        ArgumentCaptor<LocalDateTime> startCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<LocalDateTime> endCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(mealRepository).findByUser_IdAndLoggedAtBetween(eq(USER_ID), startCaptor.capture(), endCaptor.capture());
+        assertThat(startCaptor.getValue()).isEqualTo(expected.startUtc());
+        assertThat(endCaptor.getValue()).isEqualTo(expected.endUtc());
     }
 
     // --- Helpers ---

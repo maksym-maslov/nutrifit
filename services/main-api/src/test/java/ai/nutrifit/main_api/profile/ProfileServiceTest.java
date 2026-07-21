@@ -195,12 +195,47 @@ class ProfileServiceTest {
 
         UpdateProfileRequest request = new UpdateProfileRequest(
                 LocalDate.now().minusYears(28), "male", 175f, 70f,
-                FitnessGoal.MAINTAIN, ActivityLevel.SEDENTARY
+                FitnessGoal.MAINTAIN, ActivityLevel.SEDENTARY,
+                null
         );
 
         assertThatThrownBy(() -> profileService.updateProfile(user, request))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(CONFLICT));
+    }
+
+    @Test
+    void completeOnboarding_persistsNormalizedTimezone() {
+        LocalDate birthday = LocalDate.now().minusYears(25);
+        User user = new User();
+        user.setFullName("Test User");
+        user.setEmail("test@example.com");
+        OnboardingRequest request = new OnboardingRequest(
+                birthday, "male", 175f, 70f, FitnessGoal.MAINTAIN, ActivityLevel.SEDENTARY,
+                "America/New_York"
+        );
+
+        UserProfileSummaryDTO result = profileService.completeOnboarding(user, request);
+
+        assertThat(result.timezone()).isEqualTo("America/New_York");
+        assertThat(user.getTimezone()).isEqualTo("America/New_York");
+    }
+
+    @Test
+    void completeOnboarding_invalidTimezoneFallsBackToKyiv() {
+        LocalDate birthday = LocalDate.now().minusYears(25);
+        User user = new User();
+        user.setFullName("Test User");
+        user.setEmail("test@example.com");
+        OnboardingRequest request = new OnboardingRequest(
+                birthday, "male", 175f, 70f, FitnessGoal.MAINTAIN, ActivityLevel.SEDENTARY,
+                "Invalid/Zone"
+        );
+
+        UserProfileSummaryDTO result = profileService.completeOnboarding(user, request);
+
+        assertThat(result.timezone()).isEqualTo("Europe/Kyiv");
+        assertThat(user.getTimezone()).isEqualTo("Europe/Kyiv");
     }
 
     // --- Email update ---
@@ -274,7 +309,7 @@ class ProfileServiceTest {
         User user = new User();
         user.setFullName("Test User");
         user.setEmail("test@example.com");
-        OnboardingRequest request = new OnboardingRequest(birthday, gender, heightCm, weightKg, goal, activity);
+        OnboardingRequest request = new OnboardingRequest(birthday, gender, heightCm, weightKg, goal, activity, null);
         return profileService.completeOnboarding(user, request);
     }
 }

@@ -10,6 +10,7 @@ import {
   updateProfile,
 } from '@/api/profileApi'
 import { FormField } from '@/components/FormField'
+import { TIMEZONE_OPTIONS } from '@/constants/timezones'
 import { AppShell } from '@/components/layout/AppShell'
 import {
   createNumberChangeHandler,
@@ -31,6 +32,7 @@ import { useAuth } from '@/context/AuthContext'
 import type { ProblemDetail } from '@/types/auth'
 import {
   profileSummaryToFormData,
+  DEFAULT_PROFILE_TIMEZONE,
   toProfileRequest,
   type ActivityLevel,
   type FitnessGoal,
@@ -105,6 +107,7 @@ export function ProfilePage() {
     weightKg: '',
     fitnessGoal: null,
     activityLevel: null,
+    timezone: DEFAULT_PROFILE_TIMEZONE,
   })
   const [biometricsErrors, setBiometricsErrors] = useState<BiometricsFieldErrors>({})
   const [goalErrors, setGoalErrors] = useState<Pick<PlanFieldErrors, 'fitnessGoal'>>({})
@@ -169,6 +172,11 @@ export function ProfilePage() {
   const handleGenderSelect = (gender: Gender) => {
     setFormData((prev) => ({ ...prev, gender }))
     clearBiometricsError('gender')
+    if (profileServerError) setProfileServerError(null)
+  }
+
+  const handleTimezoneChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setFormData((prev) => ({ ...prev, timezone: e.target.value }))
     if (profileServerError) setProfileServerError(null)
   }
 
@@ -588,6 +596,34 @@ export function ProfilePage() {
                 errors={goalErrors}
                 onGoalSelect={handleGoalSelect}
               />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-ink-border bg-ink-light/30 p-5">
+            <h2 className="text-lg font-semibold text-white">Timezone</h2>
+            <p className="mt-1 text-sm text-white/50">
+              Daily summaries use this timezone for your calendar day
+            </p>
+            <div className="mt-5 flex flex-col gap-1.5">
+              <label htmlFor="timezone" className="text-sm font-medium text-white/70">
+                Timezone
+              </label>
+              <select
+                id="timezone"
+                value={formData.timezone}
+                onChange={handleTimezoneChange}
+                className={[
+                  'w-full rounded-xl border border-ink-border bg-ink px-4 py-3 text-sm text-white',
+                  'outline-none transition-all duration-200',
+                  'focus:border-mint focus:ring-2 focus:ring-mint/20',
+                ].join(' ')}
+              >
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
             </div>
           </section>
 
