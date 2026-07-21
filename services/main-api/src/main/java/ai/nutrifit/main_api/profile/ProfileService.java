@@ -1,9 +1,15 @@
 package ai.nutrifit.main_api.profile;
 
+import ai.nutrifit.main_api.auth.EmailService;
+import ai.nutrifit.main_api.auth.entity.VerificationToken;
+import ai.nutrifit.main_api.auth.repository.RefreshTokenRepository;
+import ai.nutrifit.main_api.auth.repository.VerificationTokenRepository;
 import ai.nutrifit.main_api.profile.dto.OnboardingRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateAccountRequest;
 import ai.nutrifit.main_api.profile.dto.UpdateProfileRequest;
 import ai.nutrifit.main_api.profile.dto.UserProfileSummaryDTO;
+import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.enums.ActivityLevel;
 import ai.nutrifit.main_api.user.enums.FitnessGoal;
@@ -14,17 +20,34 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.UUID;
 
 @Service
 public class ProfileService {
     private static final int MIN_AGE = 1;
     private static final int MAX_AGE = 120;
+    private static final int VERIFICATION_TOKEN_VALIDITY_HOURS = 24;
 
     private final UserRepository userRepository;
+    private final AuthenticationFacade authenticationFacade;
+    private final VerificationTokenRepository verificationTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final EmailService emailService;
 
-    public ProfileService(UserRepository userRepository) {
+    public ProfileService(
+            UserRepository userRepository,
+            AuthenticationFacade authenticationFacade,
+            VerificationTokenRepository verificationTokenRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            EmailService emailService
+    ) {
         this.userRepository = userRepository;
+        this.authenticationFacade = authenticationFacade;
+        this.verificationTokenRepository = verificationTokenRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -36,7 +59,8 @@ public class ProfileService {
                 request.heightCm(),
                 request.weightKg(),
                 request.fitnessGoal(),
-                request.activityLevel()
+                request.activityLevel(),
+                request.timezone()
         );
         User savedUser = userRepository.save(user);
         return UserProfileSummaryDTO.from(savedUser);
@@ -55,7 +79,8 @@ public class ProfileService {
                 request.heightCm(),
                 request.weightKg(),
                 request.fitnessGoal(),
-                request.activityLevel()
+                request.activityLevel(),
+                request.timezone()
         );
         User savedUser = userRepository.save(user);
         return UserProfileSummaryDTO.from(savedUser);
@@ -68,6 +93,48 @@ public class ProfileService {
         return UserProfileSummaryDTO.from(savedUser);
     }
 
+    @Transactional
+    public void deleteCurrentUser() {
+        Long userId = authenticationFacade.getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        userRepository.delete(user);
+    }
+
+    @Transactional
+    public void updateEmail(String newEmail) {
+        String normalizedEmail = newEmail.trim();
+
+        Long userId = authenticationFacade.getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (normalizedEmail.equalsIgnoreCase(user.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New email must be different from current email");
+        }
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+        }
+
+        user.setEmail(normalizedEmail);
+        user.setIsEmailVerified(false);
+        userRepository.save(user);
+
+        verificationTokenRepository.deleteByUser(user);
+
+        String rawToken = UUID.randomUUID().toString();
+        VerificationToken verificationToken = new VerificationToken();
+        verificationToken.setToken(rawToken);
+        verificationToken.setUser(user);
+        verificationToken.setExpiryDate(LocalDateTime.now().plusHours(VERIFICATION_TOKEN_VALIDITY_HOURS));
+        verificationTokenRepository.save(verificationToken);
+
+        emailService.sendVerificationEmail(normalizedEmail, rawToken);
+
+        refreshTokenRepository.deleteByUser(user);
+    }
+
     private void applyProfileAndRecalculateGoals(
             User user,
             LocalDate birthday,
@@ -75,7 +142,8 @@ public class ProfileService {
             float heightCm,
             float weightKg,
             FitnessGoal fitnessGoal,
-            ActivityLevel activityLevel
+            ActivityLevel activityLevel,
+            String timezone
     ) {
         int age = calculateAge(birthday);
         if (age < MIN_AGE || age > MAX_AGE) {
@@ -111,6 +179,9 @@ public class ProfileService {
         user.setGoalProteinG(goalProteinG);
         user.setGoalCarbsG(goalCarbsG);
         user.setGoalFatG(goalFatG);
+        if (timezone != null && !timezone.isBlank()) {
+            user.setTimezone(UserTimezone.normalizeTimezone(timezone));
+        }
     }
 
     private boolean isOnboarded(User user) {

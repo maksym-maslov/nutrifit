@@ -11,6 +11,7 @@ import ai.nutrifit.main_api.meal.entity.Meal;
 import ai.nutrifit.main_api.meal.entity.MealItem;
 import ai.nutrifit.main_api.meal.repository.MealRepository;
 import ai.nutrifit.main_api.shared.security.AuthenticationFacade;
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -18,8 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -50,7 +53,7 @@ public class MealService {
         Meal meal = new Meal();
         meal.setUser(user);
         meal.setName(request.name());
-        meal.setLoggedAt(LocalDateTime.now());
+        meal.setLoggedAt(LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
 
         return MealResponse.from(mealRepository.save(meal));
     }
@@ -109,10 +112,11 @@ public class MealService {
     @Transactional(readOnly = true)
     public List<MealResponse> getMealsByDate(LocalDate date) {
         Long userId = authenticationFacade.getCurrentUserId();
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        UserTimezone.UtcDayWindow window = UserTimezone.dayWindowUtc(user, date);
 
-        return mealRepository.findByUser_IdAndLoggedAtBetween(userId, start, end).stream()
+        return mealRepository.findByUser_IdAndLoggedAtBetween(userId, window.startUtc(), window.endUtc()).stream()
                 .map(MealResponse::from)
                 .toList();
     }

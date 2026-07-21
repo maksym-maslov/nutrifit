@@ -4,7 +4,9 @@ import ai.nutrifit.main_api.catalog.entity.ExerciseDictionary;
 import ai.nutrifit.main_api.user.entity.User;
 import jakarta.persistence.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "workout_logs")
@@ -35,7 +37,7 @@ public class WorkoutLog {
 
     @PrePersist
     private void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC);
     }
 
     public Long getId() {

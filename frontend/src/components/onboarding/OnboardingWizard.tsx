@@ -19,6 +19,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { useAuth } from '@/context/AuthContext'
 import type { ProblemDetail } from '@/types/auth'
 import {
+  detectBrowserTimezone,
   toOnboardingRequest,
   type ActivityLevel,
   type FitnessGoal,
@@ -33,6 +34,7 @@ const INITIAL_FORM_DATA: OnboardingFormData = {
   weightKg: '',
   fitnessGoal: null,
   activityLevel: null,
+  timezone: detectBrowserTimezone(),
 }
 
 export function OnboardingWizard() {

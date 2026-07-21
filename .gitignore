@@ -44,3 +44,8 @@ out/
 ### FastAPI ###
 .venv/
 **/__pycache__/
+
+### Node ###
+node_modules/
+dist/
+package-lock.json
