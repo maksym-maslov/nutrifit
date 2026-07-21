@@ -8,6 +8,8 @@ export type ActivityLevel =
 
 export type Gender = 'MALE' | 'FEMALE'
 
+export const DEFAULT_PROFILE_TIMEZONE = 'Europe/Kyiv'
+
 export interface ProfileFormData {
   birthday: string
   gender: Gender | null
@@ -15,6 +17,7 @@ export interface ProfileFormData {
   weightKg: number | ''
   fitnessGoal: FitnessGoal | null
   activityLevel: ActivityLevel | null
+  timezone: string
 }
 
 export type OnboardingFormData = ProfileFormData
@@ -26,6 +29,7 @@ export interface ProfileRequest {
   weightKg: number
   fitnessGoal: FitnessGoal
   activityLevel: ActivityLevel
+  timezone: string
 }
 
 export type OnboardingRequest = ProfileRequest
@@ -44,6 +48,7 @@ export interface UserProfileSummary {
   goalCarbsG: number | null
   goalFatG: number | null
   onboarded: boolean
+  timezone: string
 }
 
 export interface UserProfileSummaryDto {
@@ -60,6 +65,7 @@ export interface UserProfileSummaryDto {
   goalCarbsG: number | null
   goalFatG: number | null
   onboarded: boolean
+  timezone: string
 }
 
 export interface ProfileApiPayload {
@@ -69,6 +75,7 @@ export interface ProfileApiPayload {
   weightKg: number
   fitnessGoal: FitnessGoal
   activityLevel: ActivityLevel
+  timezone: string
 }
 
 export interface UpdateAccountRequest {
@@ -93,6 +100,18 @@ function parseGender(value: string | null): Gender | null {
   return null
 }
 
+export function detectBrowserTimezone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz && tz.trim().length > 0) {
+      return tz
+    }
+  } catch {
+    // fall through
+  }
+  return DEFAULT_PROFILE_TIMEZONE
+}
+
 export function mapProfileSummaryDto(dto: UserProfileSummaryDto): UserProfileSummary {
   return {
     fullName: dto.fullName,
@@ -108,6 +127,7 @@ export function mapProfileSummaryDto(dto: UserProfileSummaryDto): UserProfileSum
     goalCarbsG: dto.goalCarbsG,
     goalFatG: dto.goalFatG,
     onboarded: dto.onboarded,
+    timezone: dto.timezone ?? DEFAULT_PROFILE_TIMEZONE,
   }
 }
 
@@ -119,6 +139,7 @@ export function toProfileApiPayload(request: ProfileRequest): ProfileApiPayload 
     weightKg: request.weightKg,
     fitnessGoal: request.fitnessGoal,
     activityLevel: request.activityLevel,
+    timezone: request.timezone,
   }
 }
 
@@ -129,7 +150,8 @@ export function toProfileRequest(formData: ProfileFormData): ProfileRequest {
     formData.heightCm === '' ||
     formData.weightKg === '' ||
     formData.fitnessGoal === null ||
-    formData.activityLevel === null
+    formData.activityLevel === null ||
+    !formData.timezone
   ) {
     throw new Error('All profile fields are required.')
   }
@@ -141,6 +163,7 @@ export function toProfileRequest(formData: ProfileFormData): ProfileRequest {
     weightKg: formData.weightKg,
     fitnessGoal: formData.fitnessGoal,
     activityLevel: formData.activityLevel,
+    timezone: formData.timezone,
   }
 }
 
@@ -156,6 +179,7 @@ export function profileSummaryToFormData(profile: UserProfileSummary): ProfileFo
     weightKg: profile.weightKg ?? '',
     fitnessGoal: profile.fitnessGoal,
     activityLevel: profile.activityLevel,
+    timezone: profile.timezone ?? DEFAULT_PROFILE_TIMEZONE,
   }
 }
 
