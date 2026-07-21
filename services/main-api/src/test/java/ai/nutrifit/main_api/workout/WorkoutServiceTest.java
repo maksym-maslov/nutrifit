@@ -12,6 +12,7 @@ import ai.nutrifit.main_api.workout.repository.WorkoutLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,6 +21,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -76,6 +78,21 @@ class WorkoutServiceTest {
         WorkoutLogResponse result = workoutService.logWorkout(new LogWorkoutRequest(1L, 1, LocalDateTime.now()));
 
         assertThat(result.caloriesBurned()).isEqualTo(4);
+    }
+
+    @Test
+    void logWorkout_convertsLoggedAtFromProfileTimezoneToUtc() {
+        User user = userWithWeight(100.0f);
+        user.setTimezone("Europe/Kyiv");
+        ExerciseDictionary exercise = exerciseWithMet(4.0f);
+        stubDependencies(user, exercise);
+
+        LocalDateTime localWall = LocalDateTime.of(2026, 7, 7, 15, 0);
+        workoutService.logWorkout(new LogWorkoutRequest(1L, 10, localWall));
+
+        ArgumentCaptor<WorkoutLog> captor = ArgumentCaptor.forClass(WorkoutLog.class);
+        verify(workoutLogRepository).save(captor.capture());
+        assertThat(captor.getValue().getLoggedAt()).isEqualTo(LocalDateTime.of(2026, 7, 7, 12, 0));
     }
 
     // --- Helpers ---
