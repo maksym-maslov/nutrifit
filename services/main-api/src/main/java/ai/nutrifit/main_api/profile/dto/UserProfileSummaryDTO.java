@@ -1,5 +1,6 @@
 package ai.nutrifit.main_api.profile.dto;
 
+import ai.nutrifit.main_api.shared.time.UserTimezone;
 import ai.nutrifit.main_api.user.entity.User;
 import ai.nutrifit.main_api.user.enums.ActivityLevel;
 import ai.nutrifit.main_api.user.enums.FitnessGoal;
@@ -19,7 +20,8 @@ public record UserProfileSummaryDTO(
         Float goalProteinG,
         Float goalCarbsG,
         Float goalFatG,
-        boolean onboarded
+        boolean onboarded,
+        String timezone
 ) {
     public static UserProfileSummaryDTO from(User user) {
         boolean onboarded = user.getBirthday() != null && user.getFitnessGoal() != null;
@@ -36,7 +38,8 @@ public record UserProfileSummaryDTO(
                 user.getGoalProteinG(),
                 user.getGoalCarbsG(),
                 user.getGoalFatG(),
-                onboarded
+                onboarded,
+                UserTimezone.normalizeTimezone(user.getTimezone())
         );
     }
 }
